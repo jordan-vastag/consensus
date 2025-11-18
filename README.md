@@ -74,6 +74,8 @@ Group decision making tool
 
         1. If a member has not submitted their vote, none of their current votes will be considered
 
+1. After the voting phase, a list can be viewed with the lobby code
+
 ### Non-functional
 
 1. Application is containerized with Docker
