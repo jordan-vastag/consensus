@@ -87,3 +87,5 @@ Group decision making tool
     1. Total number of requests per endpoint
 
     1. Availability
+
+1. Unit tests are written
