@@ -2,6 +2,32 @@
 
 Group decision making tool
 
+## Running Development Server
+
+### Backend
+
+```bash
+cd backend
+go build -o app ./...
+./app
+```
+
+With Docker:
+
+TODO
+
+### Frontend
+
+```bash
+cd frontend
+yarn install
+yarn dev
+```
+
+With Docker:
+
+TODO
+
 ## Requirements
 
 ### Functional
