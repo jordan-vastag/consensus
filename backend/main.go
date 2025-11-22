@@ -16,7 +16,10 @@ func main() {
 	})
 
 	r.POST("/session", createSession)
-	r.POST("/session/join", joinSession)
+	r.POST("/session/:code/join", joinSession)
+	r.GET("/session/:code", getSession)
+	r.PUT("/session/:code/config", updateSessionConfig)
+	r.DELETE("/session/:code", closeSession)
 
 	r.Run() // listen on 0.0.0.0:8080 (localhost:8080 on Windows)
 }
