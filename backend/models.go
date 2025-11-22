@@ -17,3 +17,19 @@ type SessionConfig struct {
 	GracePeriodSeconds int    `json:"grace_period_seconds" binding:"min=5,max=300"`
 	AllowEmptyVoters   bool   `json:"allow_empty_voters"`
 }
+
+type Member struct {
+	MemberID    string
+	SessionID   string
+	DisplayName string
+	DoneVoting  bool
+	IsHost      bool
+}
+
+type Choice struct {
+	ChoiceID    string
+	SessionID   string // Session to which this choice belongs
+	Creator     string // MemberID of the creator
+	Name        string
+	Description string // Optional
+}
