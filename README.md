@@ -18,6 +18,8 @@ TODO
 
 ### Frontend
 
+To install yarn: `npm i --global yarn`
+
 ```bash
 cd frontend
 yarn install
