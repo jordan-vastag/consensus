@@ -9,7 +9,6 @@ type Session struct {
 	Config    SessionConfig
 }
 
-// TODO: split DTO (with json binding validation) and DAO (with DB fields and without json binding validation) models once DB is set up
 type SessionConfig struct {
 	Anonymity          bool   `json:"anonymity"`
 	VotingMode         string `json:"voting_mode" binding:"required,oneof=yes_no ranked_choice"`
