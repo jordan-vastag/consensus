@@ -1,31 +1,31 @@
 package main
 
 type ErrorResponse struct {
-	Error string `json:"error"`
+	Error string
 }
 
 type CreateSessionResponse struct {
-	Msg  string `json:"msg" binding:"required"`
-	Code int    `json:"code" binding:"required"`
+	Msg  string
+	Code int
 }
 
 type JoinSessionResponse struct {
-	Msg      string  `json:"msg" binding:"required"`
-	MemberID int     `json:"memberId" binding:"required"`
-	Session  Session `json:"session" binding:"required"`
+	Msg      string
+	MemberID int
+	Session  Session
 }
 
 type GetSessionResponse struct {
-	Msg     string  `json:"msg" binding:"required"`
-	Session Session `json:"session" binding:"required"`
+	Msg     string
+	Session Session
 }
 
 type UpdateSessionConfigResponse struct {
-	Msg string        `json:"msg" binding:"required"`
-	Old SessionConfig `json:"old" bind:"required"`
-	New SessionConfig `json:"new" bind:"required"`
+	Msg string
+	Old SessionConfig
+	New SessionConfig
 }
 
 type CloseSessionResponse struct {
-	Msg string `json:"msg" binding:"required"`
+	Msg string
 }
