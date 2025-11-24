@@ -8,7 +8,7 @@ import (
 
 type Session struct {
 	ID        primitive.ObjectID `json:"id" bson:"_id,omitempty"`
-	Code      int                `json:"code" bson:"code"`
+	Code      string             `json:"code" bson:"code"`
 	MemberIDs []string           `json:"memberIds" bson:"memberIds"`
 	Config    SessionConfig      `json:"config" bson:"config"`
 	CreatedAt time.Time          `json:"createdAt" bson:"createdAt"`
