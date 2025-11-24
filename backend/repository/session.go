@@ -19,11 +19,11 @@ func NewSessionRepository(dbName string) *SessionRepository {
 	}
 }
 
-func (repo *SessionRepository) Create(session *models.Session) (code int, err error) {
+func (repo *SessionRepository) Create(session *models.Session) (code string, err error) {
 	return
 }
 
-func (repo *SessionRepository) FindByCode(code int) (session *models.Session, err error) {
+func (repo *SessionRepository) FindByCode(code string) (session *models.Session, err error) {
 	return
 }
 
@@ -31,6 +31,6 @@ func (repo *SessionRepository) Update(session *models.Session) (err error) {
 	return
 }
 
-func (repo *SessionRepository) Delete(code int) (err error) {
+func (repo *SessionRepository) Delete(code string) (err error) {
 	return
 }
