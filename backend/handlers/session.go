@@ -3,11 +3,17 @@ package handlers
 import (
 	"consensus/models"
 	"consensus/repository"
+	"context"
+	"fmt"
+	"math/rand"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
+
+const REQUEST_TIMEOUT_SECONDS = 5
 
 type SessionHandler struct {
 	repo *repository.SessionRepository
@@ -19,8 +25,43 @@ func NewSessionHandler(repo *repository.SessionRepository) *SessionHandler {
 	}
 }
 
+func generateSessionCode(ctx context.Context, repo *repository.SessionRepository) (string, error) {
+	generate := func() string {
+		const codeLength = 6
+		characterSet := "23456789abcdefghhijkmnoqrstuvwxyz"
+		code := ""
+		for range codeLength {
+			character := string(characterSet[rand.Intn(len(characterSet))])
+			code = code + character
+			characterSet = strings.ReplaceAll(characterSet, character, "")
+		}
+		return code
+	}
+
+	activeSessions, err := repo.FindActiveSessions(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	activeCodes := make(map[string]bool)
+	for _, session := range activeSessions {
+		activeCodes[session.Code] = true
+	}
+
+	for range 5 {
+		code := generate()
+		if !activeCodes[code] {
+			return code, nil
+		}
+	}
+
+	return "", fmt.Errorf("failed to generate unique session code after 5 attempts")
+}
+
 func (h *SessionHandler) CreateSession(c *gin.Context) {
 	var req models.CreateSessionRequest
+	ctx, cancel := context.WithTimeout(c.Request.Context(), REQUEST_TIMEOUT_SECONDS*time.Second)
+	defer cancel()
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, models.ErrorResponse{
@@ -29,20 +70,27 @@ func (h *SessionHandler) CreateSession(c *gin.Context) {
 		return
 	}
 
-	// memberId = GenerateMemberID(req.DisplayName)
-	// sessionCode = GenerateSessionCode()
+	sessionCode, err := generateSessionCode(ctx, h.repo)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
 
-	newSession = models.Session{
-		ID:        primitive.NewDateTimeFromTime(currentTime),
+	members := []string{req.DisplayName}
+	currentTime := time.Now()
+
+	newSession := models.Session{
 		Code:      sessionCode,
-		MemberIDs: memberId,
+		Members:   members,
 		Config:    req.Config,
 		CreatedAt: currentTime,
 		UpdatedAt: currentTime,
-		ClosedAt:  nil,
+		ClosedAt:  time.Time{},
 	}
 
-	err := h.repo.Create(newSession)
+	err = h.repo.Create(ctx, &newSession)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
 			Error: err.Error(),
@@ -52,7 +100,7 @@ func (h *SessionHandler) CreateSession(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, models.CreateSessionResponse{
 		Msg:  "Session created",
-		Code: -1,
+		Code: sessionCode,
 	})
 }
 
@@ -77,8 +125,10 @@ func (h *SessionHandler) JoinSession(c *gin.Context) {
 
 func (h *SessionHandler) GetSession(c *gin.Context) {
 	code := c.Param("code")
+	ctx, cancel := context.WithTimeout(c.Request.Context(), REQUEST_TIMEOUT_SECONDS*time.Second)
+	defer cancel()
 
-	session, err := h.repo.FindByCode(code)
+	session, err := h.repo.FindByCode(ctx, code)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
 			Error: err.Error(),
@@ -94,6 +144,8 @@ func (h *SessionHandler) GetSession(c *gin.Context) {
 
 func (h *SessionHandler) UpdateSessionConfig(c *gin.Context) {
 	var req models.UpdateSessionConfigRequest
+	ctx, cancel := context.WithTimeout(c.Request.Context(), REQUEST_TIMEOUT_SECONDS*time.Second)
+	defer cancel()
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, models.ErrorResponse{
@@ -101,7 +153,7 @@ func (h *SessionHandler) UpdateSessionConfig(c *gin.Context) {
 		})
 	}
 
-	oldConfig, err := h.repo.Update(&req.NewConfig)
+	oldConfig, err := h.repo.Update(ctx, &req.NewConfig)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
 			Error: err.Error(),

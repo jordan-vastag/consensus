@@ -6,7 +6,7 @@ type ErrorResponse struct {
 
 type CreateSessionResponse struct {
 	Msg  string
-	Code int
+	Code string
 }
 
 type JoinSessionResponse struct {
