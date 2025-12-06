@@ -27,7 +27,7 @@ func (repo *SessionRepository) FindByCode(code string) (session *models.Session,
 	return
 }
 
-func (repo *SessionRepository) Update(session *models.Session) (err error) {
+func (repo *SessionRepository) Update(newConfig *models.SessionConfig) (oldConfig *models.SessionConfig, err error) {
 	return
 }
 
