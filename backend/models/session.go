@@ -2,18 +2,15 @@ package models
 
 import (
 	"time"
-
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type Session struct {
-	ID        primitive.ObjectID `json:"id" bson:"_id,omitempty"`
-	Code      string             `json:"code" bson:"code"`
-	MemberIDs []string           `json:"memberIds" bson:"memberIds"`
-	Config    SessionConfig      `json:"config" bson:"config"`
-	CreatedAt time.Time          `json:"createdAt" bson:"createdAt"`
-	UpdatedAt time.Time          `json:"updatedAt" bson:"updatedAt"`
-	ClosedAt  time.Time          `json:"closedAt" bson:"closedAt"`
+	Code      string        `json:"code" bson:"code"`
+	Members   []string      `json:"members" bson:"members"`
+	Config    SessionConfig `json:"config" bson:"config"`
+	CreatedAt time.Time     `json:"createdAt" bson:"createdAt"`
+	UpdatedAt time.Time     `json:"updatedAt" bson:"updatedAt"`
+	ClosedAt  time.Time     `json:"closedAt" bson:"closedAt"`
 }
 
 type SessionConfig struct {
