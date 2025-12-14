@@ -4,20 +4,23 @@ type ErrorResponse struct {
 	Error string
 }
 
+type MsgResponse struct {
+	Msg string
+}
+
 type CreateSessionResponse struct {
 	Msg  string
 	Code string
 }
 
-type JoinSessionResponse struct {
-	Msg      string
-	MemberID int
-	Session  Session
-}
-
 type GetSessionResponse struct {
 	Msg     string
 	Session Session
+}
+
+type GetSessionsResponse struct {
+	Msg      string
+	Sessions []Session
 }
 
 type UpdateSessionConfigResponse struct {
@@ -28,4 +31,20 @@ type UpdateSessionConfigResponse struct {
 
 type CloseSessionResponse struct {
 	Msg string
+}
+
+type GetMemberResponse struct {
+	Msg    string
+	Member Member
+}
+
+type GetMembersResponse struct {
+	Msg     string
+	Members []Member
+}
+
+type UpdateMemberResponse struct {
+	Msg     string
+	OldName string
+	NewName string
 }

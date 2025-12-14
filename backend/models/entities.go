@@ -6,7 +6,7 @@ import (
 
 type Session struct {
 	Code      string        `json:"code" bson:"code"`
-	Members   []string      `json:"members" bson:"members"`
+	Members   []Member      `json:"members" bson:"members"`
 	Config    SessionConfig `json:"config" bson:"config"`
 	CreatedAt time.Time     `json:"createdAt" bson:"createdAt"`
 	UpdatedAt time.Time     `json:"updatedAt" bson:"updatedAt"`
@@ -20,4 +20,12 @@ type SessionConfig struct {
 	MaxChoices         int    `json:"max_choices" binding:"required,gtefield=MinChoices" bson:"maxChoices"`
 	GracePeriodSeconds int    `json:"grace_period_seconds" binding:"min=5,max=300" bson:"gracePeriodSeconds"`
 	AllowEmptyVoters   bool   `json:"allow_empty_voters" bson:"allowEmptyVoters"`
+}
+
+type Member struct {
+	Code      string    `json:"code" bson:"code"`
+	Name      string    `json:"name" bson:"name"`
+	Host      bool      `json:"host" bson:"host"`
+	CreatedAt time.Time `json:"createdAt" bson:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt" bson:"updatedAt"`
 }

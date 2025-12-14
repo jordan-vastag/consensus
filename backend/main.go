@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 
 	"consensus/database"
 	"consensus/handlers"
@@ -14,7 +15,11 @@ import (
 const DB_NAME = "dev"
 
 func main() {
-	mongoURI := "mongodb://localhost:27017"
+	mongoURI := os.Getenv("MONGO_URI")
+	if mongoURI == "" {
+		mongoURI = "mongodb://localhost:27017"
+	}
+
 	if err := database.Connect(mongoURI); err != nil {
 		log.Fatal(err)
 	}
@@ -32,10 +37,15 @@ func main() {
 	sessionRoutes := router.Group("/api/session")
 	{
 		sessionRoutes.POST("/", sessionHandler.CreateSession)
+		sessionRoutes.GET("/", sessionHandler.GetSessions)
 		sessionRoutes.POST("/:code/join", sessionHandler.JoinSession)
 		sessionRoutes.GET("/:code", sessionHandler.GetSession)
 		sessionRoutes.PUT("/:code/config", sessionHandler.UpdateSessionConfig)
-		sessionRoutes.DELETE("/:code", sessionHandler.CloseSession)
+		sessionRoutes.PUT("/:code/close", sessionHandler.CloseSession)
+		sessionRoutes.GET("/:code/member", sessionHandler.GetMembers)
+		sessionRoutes.GET("/:code/member/:name", sessionHandler.GetMember)
+		sessionRoutes.PUT("/:code/member/:name", sessionHandler.UpdateMember)
+
 	}
 
 	if err := router.Run(":8080"); err != nil {

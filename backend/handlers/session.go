@@ -55,11 +55,12 @@ func generateSessionCode(ctx context.Context, repo *repository.SessionRepository
 		}
 	}
 
-	return "", fmt.Errorf("failed to generate unique session code after 5 attempts")
+	return "", fmt.Errorf("Failed to generate unique session code after 5 attempts")
 }
 
 func (h *SessionHandler) CreateSession(c *gin.Context) {
 	var req models.CreateSessionRequest
+
 	ctx, cancel := context.WithTimeout(c.Request.Context(), REQUEST_TIMEOUT_SECONDS*time.Second)
 	defer cancel()
 
@@ -78,8 +79,15 @@ func (h *SessionHandler) CreateSession(c *gin.Context) {
 		return
 	}
 
-	members := []string{req.DisplayName}
 	currentTime := time.Now()
+	host := models.Member{
+		Code:      sessionCode,
+		Name:      req.Name,
+		Host:      true,
+		CreatedAt: currentTime,
+		UpdatedAt: currentTime,
+	}
+	members := []models.Member{host}
 
 	newSession := models.Session{
 		Code:      sessionCode,
@@ -90,7 +98,7 @@ func (h *SessionHandler) CreateSession(c *gin.Context) {
 		ClosedAt:  time.Time{},
 	}
 
-	err = h.repo.Create(ctx, &newSession)
+	err = h.repo.CreateSession(ctx, &newSession)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
 			Error: err.Error(),
@@ -106,7 +114,10 @@ func (h *SessionHandler) CreateSession(c *gin.Context) {
 
 func (h *SessionHandler) JoinSession(c *gin.Context) {
 	var req models.JoinSessionRequest
-	// code := c.Param("code")
+	code := c.Param("code")
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), REQUEST_TIMEOUT_SECONDS*time.Second)
+	defer cancel()
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, models.ErrorResponse{
@@ -114,21 +125,60 @@ func (h *SessionHandler) JoinSession(c *gin.Context) {
 		})
 	}
 
-	// TODO: logic
+	session, err := h.repo.FindSessionByCode(ctx, code)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
 
-	c.JSON(http.StatusOK, models.JoinSessionResponse{
-		Msg:      "Session joined",
-		MemberID: -1,
-		Session:  models.Session{},
+	if !time.Time.Equal(session.ClosedAt, time.Time{}) {
+		c.JSON(http.StatusGone, models.ErrorResponse{
+			Error: "Session is closed",
+		})
+		return
+	}
+
+
+	for _, member := range session.Members {
+		if member.Name == req.Name {
+			c.JSON(http.StatusConflict, models.ErrorResponse{
+				Error: "Name already exists in this session",
+			})
+			return
+		}
+	}
+
+	currentTime := time.Now()
+	joinee := models.Member{
+		Code:      code,
+		Name:      req.Name,
+		Host:      false,
+		CreatedAt: currentTime,
+		UpdatedAt: currentTime,
+	}
+
+	err = h.repo.AddMemberToSession(ctx, code, joinee)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, models.MsgResponse{
+		Msg: "Session joined",
 	})
 }
 
 func (h *SessionHandler) GetSession(c *gin.Context) {
 	code := c.Param("code")
+
 	ctx, cancel := context.WithTimeout(c.Request.Context(), REQUEST_TIMEOUT_SECONDS*time.Second)
 	defer cancel()
 
-	session, err := h.repo.FindByCode(ctx, code)
+	session, err := h.repo.FindSessionByCode(ctx, code)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
 			Error: err.Error(),
@@ -142,8 +192,46 @@ func (h *SessionHandler) GetSession(c *gin.Context) {
 	})
 }
 
+func (h *SessionHandler) GetSessions(c *gin.Context) {
+	status := c.Query("status")
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), REQUEST_TIMEOUT_SECONDS*time.Second)
+	defer cancel()
+
+	var sessions []models.Session
+	var err error
+	var msg string
+
+	switch status {
+	case "active":
+		sessions, err = h.repo.FindActiveSessions(ctx)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+				Error: err.Error(),
+			})
+			return
+		}
+		msg = "Active sessions retrieved"
+	default:
+		sessions, err = h.repo.FindAllSessions(ctx)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+				Error: err.Error(),
+			})
+			return
+		}
+		msg = "All sessions retrieved"
+	}
+
+	c.JSON(http.StatusOK, models.GetSessionsResponse{
+		Msg:      msg,
+		Sessions: sessions,
+	})
+}
+
 func (h *SessionHandler) UpdateSessionConfig(c *gin.Context) {
 	var req models.UpdateSessionConfigRequest
+
 	ctx, cancel := context.WithTimeout(c.Request.Context(), REQUEST_TIMEOUT_SECONDS*time.Second)
 	defer cancel()
 
@@ -153,7 +241,7 @@ func (h *SessionHandler) UpdateSessionConfig(c *gin.Context) {
 		})
 	}
 
-	oldConfig, err := h.repo.Update(ctx, &req.NewConfig)
+	oldConfig, err := h.repo.UpdateSessionConfig(ctx, &req.NewConfig)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
 			Error: err.Error(),
@@ -162,7 +250,7 @@ func (h *SessionHandler) UpdateSessionConfig(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, models.UpdateSessionConfigResponse{
-		Msg: "Session modified",
+		Msg: "Session updated",
 		Old: *oldConfig,
 		New: req.NewConfig,
 	})
@@ -170,7 +258,10 @@ func (h *SessionHandler) UpdateSessionConfig(c *gin.Context) {
 
 func (h *SessionHandler) CloseSession(c *gin.Context) {
 	var req models.CloseSessionRequest
-	// code := c.Param("code")
+	code := c.Param("code")
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), REQUEST_TIMEOUT_SECONDS*time.Second)
+	defer cancel()
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, models.ErrorResponse{
@@ -178,9 +269,103 @@ func (h *SessionHandler) CloseSession(c *gin.Context) {
 		})
 	}
 
-	// TODO: logic
+	requestor, err := h.repo.FindMember(ctx, code, req.Name)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+
+	if !requestor.Host {
+		c.JSON(http.StatusForbidden, models.ErrorResponse{
+			Error: "Non host members are not authorized to close sessions",
+		})
+		return
+	}
+
+	err = h.repo.CloseSession(ctx, code)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
 
 	c.JSON(http.StatusOK, models.CloseSessionResponse{
 		Msg: "Session closed",
+	})
+
+}
+
+func (h *SessionHandler) UpdateMember(c *gin.Context) {
+	var req models.UpdateMemberRequest
+	code := c.Param("code")
+	name := c.Param("name")
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), REQUEST_TIMEOUT_SECONDS*time.Second)
+	defer cancel()
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+
+	err := h.repo.UpdateMember(ctx, code, name, req.NewName)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, models.UpdateMemberResponse{
+		Msg:     "Member updated",
+		OldName: name,
+		NewName: req.NewName,
+	})
+
+}
+
+func (h *SessionHandler) GetMember(c *gin.Context) {
+	code := c.Param("code")
+	name := c.Param("name")
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), REQUEST_TIMEOUT_SECONDS*time.Second)
+	defer cancel()
+
+	member, err := h.repo.FindMember(ctx, code, name)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, models.GetMemberResponse{
+		Msg:    "Member retrieved",
+		Member: *member,
+	})
+}
+
+func (h *SessionHandler) GetMembers(c *gin.Context) {
+	code := c.Param("code")
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), REQUEST_TIMEOUT_SECONDS*time.Second)
+	defer cancel()
+
+	members, err := h.repo.FindAllMembers(ctx, code)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, models.GetMembersResponse{
+		Msg:     "Members retrieved",
+		Members: members,
 	})
 }
