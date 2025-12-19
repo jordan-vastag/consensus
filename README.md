@@ -8,7 +8,7 @@ Group decision making tool
 
 ```bash
 cd backend
-go build -o app ./...
+go build -o app .
 ./app
 ```
 
@@ -29,6 +29,10 @@ yarn dev
 With Docker:
 
 TODO
+
+## Testing
+
+In the `test` directory there is a [Bruno](https://www.usebruno.com/) collection for manually testing endpoints. To use it, open Bruno and select `Import Collection` from the main meatball (•••) menu.
 
 ## Requirements
 

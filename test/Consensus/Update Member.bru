@@ -1,0 +1,31 @@
+meta {
+  name: Update Member
+  type: http
+  seq: 10
+}
+
+put {
+  url: http://{{base-url}}/api/session/:code/member/:name
+  body: json
+  auth: inherit
+}
+
+params:path {
+  code: 
+  name: Alice
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "newName": "Bob"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
