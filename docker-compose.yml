@@ -10,7 +10,6 @@ services:
       - MONGO_URI=mongodb://mongo:27017
     depends_on:
       - mongo
-    # optional: restart: unless-stopped
 
   frontend:
     build:
@@ -20,7 +19,6 @@ services:
       - "3000:3000"
     environment:
       - NEXT_PUBLIC_API_BASE=http://backend:8080
-    # optional: restart: unless-stopped
 
   mongo:
     image: mongo:8
