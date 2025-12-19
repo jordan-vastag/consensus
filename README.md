@@ -8,7 +8,7 @@ Group decision making tool
 
 ```bash
 cd backend
-go build -o app ./...
+go build -o app .
 ./app
 ```
 
