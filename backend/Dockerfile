@@ -8,6 +8,6 @@ RUN go mod download
 ENV GIN_MODE=release
 
 COPY . .
-RUN go build -v -o app ./...
+RUN go build -v -o app .
 
 CMD ["./app"]
