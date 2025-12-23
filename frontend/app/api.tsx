@@ -1,9 +1,14 @@
 const API_BASE_URL = "http://localhost:8080/api";
 
 async function startSession(payload: any) {
-  console.log(`sending request to ${API_BASE_URL}/session`);
-  const response = await fetch(`${API_BASE_URL}/session`, {
+  const url = `${API_BASE_URL}/session/`;
+  console.log(`POST ${API_BASE_URL}/session/`, payload);
+
+  const response = await fetch(url, {
     method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify(payload),
   });
 
