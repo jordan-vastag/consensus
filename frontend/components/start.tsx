@@ -68,7 +68,6 @@ function Start() {
       },
     };
 
-    console.log(payload);
     try {
       startSession(payload);
       // TODO: show lobby
