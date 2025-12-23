@@ -10,17 +10,17 @@ import {
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { REGEXP_ONLY_DIGITS_AND_CHARS } from "input-otp";
-import Image from "next/image";
-import { useState } from "react";
 import {
     InputOTP,
     InputOTPGroup,
     InputOTPSeparator,
     InputOTPSlot,
-} from "./ui/input-otp";
+} from "@/components/ui/input-otp";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { REGEXP_ONLY_DIGITS_AND_CHARS } from "input-otp";
+import Image from "next/image";
+import { useState } from "react";
 
 function Start() {
   const [hostClicked, setHostClicked] = useState(false);
