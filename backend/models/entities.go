@@ -18,7 +18,7 @@ type SessionConfig struct {
 	VotingMode         string `json:"voting_mode" binding:"required,oneof=yes_no ranked_choice" bson:"votingMode"`
 	MinChoices         int    `json:"min_choices" binding:"min=0" bson:"minChoices"`
 	MaxChoices         int    `json:"max_choices" binding:"required,gtefield=MinChoices" bson:"maxChoices"`
-	GracePeriodSeconds int    `json:"grace_period_seconds" binding:"min=5,max=300" bson:"gracePeriodSeconds"`
+	GracePeriodSeconds int    `json:"grace_period_seconds" binding:"min=0,max=30" bson:"gracePeriodSeconds"`
 	AllowEmptyVoters   bool   `json:"allow_empty_voters" bson:"allowEmptyVoters"`
 }
 
