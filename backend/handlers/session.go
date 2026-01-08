@@ -28,7 +28,7 @@ func NewSessionHandler(repo *repository.SessionRepository) *SessionHandler {
 func generateSessionCode(ctx context.Context, repo *repository.SessionRepository) (string, error) {
 	generate := func() string {
 		const codeLength = 6
-		characterSet := "23456789abcdefghhijkmnoqrstuvwxyz"
+		characterSet := "23456789abcdefghhijkmnqrstuvwxyz"
 		code := ""
 		for range codeLength {
 			character := string(characterSet[rand.Intn(len(characterSet))])
@@ -139,7 +139,6 @@ func (h *SessionHandler) JoinSession(c *gin.Context) {
 		})
 		return
 	}
-
 
 	for _, member := range session.Members {
 		if member.Name == req.Name {
