@@ -232,7 +232,7 @@ function Start() {
             </CardHeader>
             <CardContent>
               <div className="flex flex-col items-center space-x-2 gap-2">
-                <InputOTP maxLength={4} pattern={REGEXP_ONLY_DIGITS_AND_CHARS}>
+                <InputOTP maxLength={6} pattern={REGEXP_ONLY_DIGITS_AND_CHARS}>
                   <InputOTPGroup>
                     <InputOTPSlot index={0} />
                     <InputOTPSeparator />
@@ -241,6 +241,10 @@ function Start() {
                     <InputOTPSlot index={2} />
                     <InputOTPSeparator />
                     <InputOTPSlot index={3} />
+                    <InputOTPSeparator />
+                    <InputOTPSlot index={4} />
+                    <InputOTPSeparator />
+                    <InputOTPSlot index={5} />
                   </InputOTPGroup>
                 </InputOTP>
                 <div className="text-center text-sm">Enter your join code</div>
