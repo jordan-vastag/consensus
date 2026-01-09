@@ -2,7 +2,7 @@
 
 Group decision making tool
 
-## Running Development Server
+## Running Locally
 
 ### Backend
 
@@ -11,10 +11,6 @@ cd backend
 go build -o app .
 ./app
 ```
-
-With Docker:
-
-TODO
 
 ### Frontend
 
@@ -26,9 +22,13 @@ yarn install
 yarn dev
 ```
 
-With Docker:
+### Docker
 
-TODO
+`docker compose up --build`
+
+Note: when developing it's easiest to run mongo via Docker and the frontend and backend directly. 
+
+To only run mongo with docker compose: `docker compose up mongo` 
 
 ## Testing
 
