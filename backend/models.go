@@ -18,6 +18,7 @@ type SessionConfig struct {
 	AllowEmptyVoters   bool   `json:"allow_empty_voters"`
 }
 
+// TODO: update Member and Session so host status is held in Session instead of in each member e.g. "Host: string" where the value is a member name
 type Member struct {
 	MemberID    string
 	SessionID   string
