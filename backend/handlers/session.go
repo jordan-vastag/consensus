@@ -28,7 +28,7 @@ func NewSessionHandler(repo *repository.SessionRepository) *SessionHandler {
 func generateSessionCode(ctx context.Context, repo *repository.SessionRepository) (string, error) {
 	generate := func() string {
 		const codeLength = 6
-		characterSet := "23456789abcdefghhijkmnqrstuvwxyz"
+		characterSet := "23456789abcdefghhjkmnqrstuvwxyz"
 		code := ""
 		for range codeLength {
 			character := string(characterSet[rand.Intn(len(characterSet))])
