@@ -30,3 +30,4 @@ go.work.sum
 
 yarn.lock
 package-lock.json
+backend/app
