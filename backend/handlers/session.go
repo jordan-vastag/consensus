@@ -166,8 +166,9 @@ func (h *SessionHandler) JoinSession(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, models.MsgResponse{
-		Msg: "Session joined",
+	c.JSON(http.StatusOK, models.JoinSessionResponse{
+		Msg:     "Session joined",
+		Session: *session,
 	})
 }
 
@@ -291,7 +292,7 @@ func (h *SessionHandler) CloseSession(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, models.CloseSessionResponse{
+	c.JSON(http.StatusOK, models.MsgResponse{
 		Msg: "Session closed",
 	})
 

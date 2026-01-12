@@ -29,8 +29,9 @@ type UpdateSessionConfigResponse struct {
 	New SessionConfig
 }
 
-type CloseSessionResponse struct {
-	Msg string
+type JoinSessionResponse struct {
+	Msg     string
+	Session Session
 }
 
 type GetMemberResponse struct {
