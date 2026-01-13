@@ -7,6 +7,7 @@ import (
 type Session struct {
 	Code      string        `json:"code" bson:"code"`
 	Members   []Member      `json:"members" bson:"members"`
+	Title     string        `json:"title" bson:"title"`
 	Config    SessionConfig `json:"config" bson:"config"`
 	CreatedAt time.Time     `json:"createdAt" bson:"createdAt"`
 	UpdatedAt time.Time     `json:"updatedAt" bson:"updatedAt"`

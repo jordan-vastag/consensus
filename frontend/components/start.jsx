@@ -1,6 +1,6 @@
 "use client";
 
-import { startSession } from "@/app/api";
+import { hostSession, joinSession } from "@/app/api";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -29,6 +29,8 @@ function Start() {
   const [isLoading, setIsLoading] = useState(false);
   const [hostClicked, setHostClicked] = useState(false);
   const [joinClicked, setJoinClicked] = useState(false);
+  const [joinCode, setJoinCode] = useState("");
+  const [joinName, setJoinName] = useState("");
   const [errorMessage, setErrorMessage] = useState({
     visible: false,
     text: "Something went wrong. Please reload the page and try again later if the problem persists.",
@@ -63,7 +65,7 @@ function Start() {
     setJoinClicked(false);
   };
 
-  const handleStartSessionClick = () => {
+  const handleHostSessionClick = () => {
     const payload = {
       name: sessionConfig.name,
       title: sessionConfig.title,
@@ -78,18 +80,19 @@ function Start() {
     };
 
     setIsLoading(true);
-    
-    startSession(payload)
-    .then((response) => {
-        setIsLoading(false);
+
+    hostSession(payload)
+      .then((response) => {
         let members = [];
         members.push(payload.name);
         setSessionState({
           active: true,
           code: response.Code,
           members: members,
-          host: payload.name
+          host: payload.name,
+          title: sessionConfig.title,
         });
+        setIsLoading(false);
       })
       .catch(() => {
         setErrorMessage({
@@ -100,10 +103,31 @@ function Start() {
   };
 
   const handleJoinSessionClick = () => {
-    // TODO
+    setIsLoading(true);
+    joinSession(joinCode, joinName)
+      .then((response) => {
+        const members = response.Session.members.map((member) => member.name);
+        const host = response.Session.members.find(
+          (member) => member.host
+        ).name;
+        setSessionState({
+          active: true,
+          code: joinCode,
+          members: members,
+          host: host,
+          title: response.Session.title,
+        });
+        setIsLoading(false);
+      })
+      .catch(() => {
+        setErrorMessage({
+          text: "Failed to join session. Are you sure your code was correct?",
+          visible: true,
+        });
+      });
   };
 
-  const handleStartVotingClick = () => {
+  const handleStartSessionClick = () => {
     setIsLoading(true);
     // TODO
   };
@@ -252,8 +276,8 @@ function Start() {
                   >
                     Cancel
                   </Button>
-                  <Button className="w-30" onClick={handleStartSessionClick}>
-                    Start Session
+                  <Button className="w-30" onClick={handleHostSessionClick}>
+                    Host Session
                   </Button>
                 </div>
               </CardContent>
@@ -267,9 +291,20 @@ function Start() {
               </CardHeader>
               <CardContent>
                 <div className="flex flex-col items-center space-x-2 gap-2">
+                  <Input
+                    id="host-name"
+                    placeholder="Name"
+                    className="mb-4"
+                    value={joinName}
+                    onChange={(e) => {
+                      setJoinName(e.target.value);
+                    }}
+                  />
                   <InputOTP
                     maxLength={6}
                     pattern={REGEXP_ONLY_DIGITS_AND_CHARS}
+                    value={joinCode}
+                    onChange={(code) => setJoinCode(code)}
                   >
                     <InputOTPGroup>
                       <InputOTPSlot index={0} />
@@ -296,7 +331,7 @@ function Start() {
                         variant="outline"
                         className="w-20"
                         onClick={handleCancelClick}
-                        >
+                      >
                         Cancel
                       </Button>
                       <Button className="w-30" onClick={handleJoinSessionClick}>
@@ -304,7 +339,7 @@ function Start() {
                       </Button>
                     </>
                   )}
-                  {isLoading && <Spinner className="size-8 mt-4"/>}
+                  {isLoading && <Spinner className="size-8 mt-4" />}
                 </div>
               </CardContent>
             </Card>
@@ -315,22 +350,31 @@ function Start() {
       {sessionState.active && (
         <Card className="w-full max-w-sm m-10">
           <CardHeader>
-            <CardTitle className="text-2xl">{sessionConfig.title}</CardTitle>
-            <CardDescription className="text-lg">Join Code: {sessionState.code.toUpperCase() }</CardDescription>
+            <CardTitle className="text-2xl">{sessionState.title}</CardTitle>
+            <CardDescription className="text-lg">
+              Join Code: {sessionState.code.toUpperCase()}
+            </CardDescription>
             <CardAction>
               <div className="flex items-center">
-                {isLoading && <Spinner className="size-8 mt-4"/>}
-                {!isLoading && <Button className="w-30" onClick={handleStartVotingClick}>Start Voting</Button>}
+                {isLoading && <Spinner className="size-8 mt-4" />}
+                {!isLoading && (
+                  <Button className="w-30" onClick={handleStartSessionClick}>
+                    Start Session
+                  </Button>
+                )}
               </div>
             </CardAction>
           </CardHeader>
           <CardContent>
             <div className="text-md underline">Members</div>
-            <ul>{sessionState?.members.map(member =>
-              member === sessionState.host ?
-                <li key={member}>{member} (host)</li> :
-                <li key={member}>{member}</li>
-            )}
+            <ul>
+              {sessionState?.members.map((member) =>
+                member === sessionState.host ? (
+                  <li key={member}>{member} (host)</li>
+                ) : (
+                  <li key={member}>{member}</li>
+                )
+              )}
             </ul>
           </CardContent>
         </Card>

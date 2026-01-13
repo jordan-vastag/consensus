@@ -92,6 +92,7 @@ func (h *SessionHandler) CreateSession(c *gin.Context) {
 	newSession := models.Session{
 		Code:      sessionCode,
 		Members:   members,
+		Title:     req.Title,
 		Config:    req.Config,
 		CreatedAt: currentTime,
 		UpdatedAt: currentTime,
@@ -165,6 +166,8 @@ func (h *SessionHandler) JoinSession(c *gin.Context) {
 		})
 		return
 	}
+
+	session.Members = append(session.Members, joinee)
 
 	c.JSON(http.StatusOK, models.JoinSessionResponse{
 		Msg:     "Session joined",
