@@ -28,7 +28,7 @@ func NewSessionHandler(repo *repository.SessionRepository) *SessionHandler {
 func generateSessionCode(ctx context.Context, repo *repository.SessionRepository) (string, error) {
 	generate := func() string {
 		const codeLength = 6
-		characterSet := "23456789abcdefghhijkmnoqrstuvwxyz"
+		characterSet := "23456789abcdefghhjkmnqrstuvwxyz"
 		code := ""
 		for range codeLength {
 			character := string(characterSet[rand.Intn(len(characterSet))])
@@ -92,6 +92,7 @@ func (h *SessionHandler) CreateSession(c *gin.Context) {
 	newSession := models.Session{
 		Code:      sessionCode,
 		Members:   members,
+		Title:     req.Title,
 		Config:    req.Config,
 		CreatedAt: currentTime,
 		UpdatedAt: currentTime,
@@ -114,7 +115,7 @@ func (h *SessionHandler) CreateSession(c *gin.Context) {
 
 func (h *SessionHandler) JoinSession(c *gin.Context) {
 	var req models.JoinSessionRequest
-	code := c.Param("code")
+	code := strings.ToLower(c.Param("code"))
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), REQUEST_TIMEOUT_SECONDS*time.Second)
 	defer cancel()
@@ -139,7 +140,6 @@ func (h *SessionHandler) JoinSession(c *gin.Context) {
 		})
 		return
 	}
-
 
 	for _, member := range session.Members {
 		if member.Name == req.Name {
@@ -167,13 +167,16 @@ func (h *SessionHandler) JoinSession(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, models.MsgResponse{
-		Msg: "Session joined",
+	session.Members = append(session.Members, joinee)
+
+	c.JSON(http.StatusOK, models.JoinSessionResponse{
+		Msg:     "Session joined",
+		Session: *session,
 	})
 }
 
 func (h *SessionHandler) GetSession(c *gin.Context) {
-	code := c.Param("code")
+	code := strings.ToLower(c.Param("code"))
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), REQUEST_TIMEOUT_SECONDS*time.Second)
 	defer cancel()
@@ -258,7 +261,7 @@ func (h *SessionHandler) UpdateSessionConfig(c *gin.Context) {
 
 func (h *SessionHandler) CloseSession(c *gin.Context) {
 	var req models.CloseSessionRequest
-	code := c.Param("code")
+	code := strings.ToLower(c.Param("code"))
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), REQUEST_TIMEOUT_SECONDS*time.Second)
 	defer cancel()
@@ -292,7 +295,7 @@ func (h *SessionHandler) CloseSession(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, models.CloseSessionResponse{
+	c.JSON(http.StatusOK, models.MsgResponse{
 		Msg: "Session closed",
 	})
 
@@ -300,7 +303,7 @@ func (h *SessionHandler) CloseSession(c *gin.Context) {
 
 func (h *SessionHandler) UpdateMember(c *gin.Context) {
 	var req models.UpdateMemberRequest
-	code := c.Param("code")
+	code := strings.ToLower(c.Param("code"))
 	name := c.Param("name")
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), REQUEST_TIMEOUT_SECONDS*time.Second)
@@ -313,7 +316,31 @@ func (h *SessionHandler) UpdateMember(c *gin.Context) {
 		return
 	}
 
-	err := h.repo.UpdateMember(ctx, code, name, req.NewName)
+	session, err := h.repo.FindSessionByCode(ctx, code)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+
+	if !time.Time.Equal(session.ClosedAt, time.Time{}) {
+		c.JSON(http.StatusGone, models.ErrorResponse{
+			Error: "Session is closed",
+		})
+		return
+	}
+
+	for _, member := range session.Members {
+		if member.Name == req.NewName {
+			c.JSON(http.StatusConflict, models.ErrorResponse{
+				Error: "Name already exists in this session",
+			})
+			return
+		}
+	}
+
+	err = h.repo.UpdateMember(ctx, code, name, req.NewName)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
 			Error: err.Error(),
@@ -330,7 +357,7 @@ func (h *SessionHandler) UpdateMember(c *gin.Context) {
 }
 
 func (h *SessionHandler) GetMember(c *gin.Context) {
-	code := c.Param("code")
+	code := strings.ToLower(c.Param("code"))
 	name := c.Param("name")
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), REQUEST_TIMEOUT_SECONDS*time.Second)
@@ -351,7 +378,7 @@ func (h *SessionHandler) GetMember(c *gin.Context) {
 }
 
 func (h *SessionHandler) GetMembers(c *gin.Context) {
-	code := c.Param("code")
+	code := strings.ToLower(c.Param("code"))
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), REQUEST_TIMEOUT_SECONDS*time.Second)
 	defer cancel()
