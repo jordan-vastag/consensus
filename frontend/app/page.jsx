@@ -1,9 +1,9 @@
-import { Start } from '@/components/start';
+import { Start } from "@/components/start";
 
 export default function Home() {
   return (
     <>
       <Start />
     </>
-  )
+  );
 }
