@@ -12,15 +12,16 @@ import (
 var DBClient *mongo.Client
 
 func Connect(uri string) error {
+	// Set client timeout to 10 seconds and connect to MongoDB
 	clientOptions := options.Client().ApplyURI(uri).SetConnectTimeout(10 * time.Second)
 	client, err := mongo.Connect(clientOptions)
 	if err != nil {
 		return err
 	}
-
+	// 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-
+	// Ping the DB to verify connection
 	err = client.Ping(ctx, nil)
 	if err != nil {
 		return err
