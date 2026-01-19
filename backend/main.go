@@ -65,6 +65,12 @@ func main() {
 
 	}
 
+	integrationHandler := handlers.NewIntegrationHandler()
+	integrationRoutes := router.Group("/api/integrations")
+	{
+		integrationRoutes.GET("/tmdb/search", integrationHandler.SearchTMDB)
+	}
+
 	if err := router.Run(":8080"); err != nil {
 		panic(err)
 	}

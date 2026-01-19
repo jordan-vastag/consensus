@@ -49,3 +49,24 @@ type UpdateMemberResponse struct {
 	OldName string
 	NewName string
 }
+
+type TMDBSearchResultResponse struct {
+	ID               int64                  `json:"id"`
+	Title            string                 `json:"title"`
+	Overview         string                 `json:"overview"`
+	PosterURL        string                 `json:"poster_url"`
+	BackdropURL      string                 `json:"backdrop_url"`
+	ReleaseDate      string                 `json:"release_date"`
+	VoteAverage      float64                `json:"vote_average"`
+	Popularity       float64                `json:"popularity"`
+	OriginalLanguage string                 `json:"original_language"`
+	GenreIds         []int                  `json:"genre_ids"`
+	Metadata         map[string]interface{} `json:"metadata"`
+}
+
+type TMDBSearchResponse struct {
+	Msg     string                     `json:"msg"`
+	Results []TMDBSearchResultResponse `json:"results"`
+	Page    int                        `json:"page"`
+	Total   int                        `json:"total"`
+}
