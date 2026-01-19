@@ -10,6 +10,10 @@ type JoinSessionRequest struct {
 	Name string `json:"name" binding:"required"`
 }
 
+type LeaveSessionRequest struct {
+	Name string `json:"name" binding:"required"`
+}
+
 type UpdateSessionConfigRequest struct {
 	Code      string        `json:"code" binding:"required"`
 	NewConfig SessionConfig `json:"newConfig" bind:"required"`

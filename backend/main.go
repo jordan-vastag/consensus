@@ -8,6 +8,7 @@ import (
 	"consensus/database"
 	"consensus/handlers"
 	"consensus/repository"
+	"consensus/websocket"
 
 	"github.com/gin-gonic/gin"
 )
@@ -50,19 +51,26 @@ func main() {
 		})
 	})
 
-	sessionHandler := handlers.NewSessionHandler(repository.NewSessionRepository(DB_NAME))
+	// Initialize WebSocket hub
+	hub := websocket.NewHub()
+	go hub.Run()
+
+	sessionRepo := repository.NewSessionRepository(DB_NAME)
+	sessionHandler := handlers.NewSessionHandler(sessionRepo, hub)
+	wsHandler := websocket.NewHandler(hub, sessionRepo)
 	sessionRoutes := router.Group("/api/session")
 	{
 		sessionRoutes.POST("/", sessionHandler.CreateSession)
 		sessionRoutes.GET("/", sessionHandler.GetSessions)
 		sessionRoutes.POST("/:code/join", sessionHandler.JoinSession)
+		sessionRoutes.POST("/:code/leave", sessionHandler.LeaveSession)
 		sessionRoutes.GET("/:code", sessionHandler.GetSession)
 		sessionRoutes.PUT("/:code/config", sessionHandler.UpdateSessionConfig)
 		sessionRoutes.PUT("/:code/close", sessionHandler.CloseSession)
 		sessionRoutes.GET("/:code/member", sessionHandler.GetMembers)
-		sessionRoutes.GET("/:code/member/:name", sessionHandler.GetMember)
-		sessionRoutes.PUT("/:code/member/:name", sessionHandler.UpdateMember)
-
+		sessionRoutes.GET("/:code/member/:name", sessionHandler.GetMember)    // TODO: convert name from path param to query param
+		sessionRoutes.PUT("/:code/member/:name", sessionHandler.UpdateMember) // TODO: convert name from path param to query param
+		sessionRoutes.GET("/:code/ws", wsHandler.HandleWebSocket)
 	}
 
 	if err := router.Run(":8080"); err != nil {
