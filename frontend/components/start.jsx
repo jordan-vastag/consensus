@@ -1,6 +1,7 @@
 "use client";
 
 import { hostSession, joinSession } from "@/app/api";
+import { useSessionWebSocket } from "@/hooks/useSessionWebSocket";
 import { Button } from "@/ui/button";
 import {
   Card,
@@ -23,7 +24,7 @@ import { RadioGroup, RadioGroupItem } from "@/ui/radio-group";
 import { Spinner } from "@/ui/spinner";
 import { REGEXP_ONLY_DIGITS_AND_CHARS } from "input-otp";
 import Image from "next/image";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 function Start() {
   const [isLoading, setIsLoading] = useState(false);
@@ -50,15 +51,64 @@ function Start() {
     code: "",
     members: [],
     host: "",
+    myName: "",
+    ready: {}, // memberName → ready status
+    phase: "lobby",
   });
 
-  const handleHostClick = () => {
-    setHostClicked(true);
-  };
+  // WebSocket handlers
+  const handleMemberJoined = useCallback((memberName) => {
+    setSessionState((prev) => ({
+      ...prev,
+      members: [...prev.members, memberName],
+      ready: { ...prev.ready, [memberName]: false },
+    }));
+  }, []);
 
-  const handleJoinClick = () => {
-    setJoinClicked(true);
-  };
+  const handleMemberLeft = useCallback((memberName) => {
+    setSessionState((prev) => {
+      const newReady = { ...prev.ready };
+      delete newReady[memberName];
+      return {
+        ...prev,
+        members: prev.members.filter((m) => m !== memberName),
+        ready: newReady,
+      };
+    });
+  }, []);
+
+  const handleMemberReady = useCallback((memberName, ready) => {
+    setSessionState((prev) => ({
+      ...prev,
+      ready: { ...prev.ready, [memberName]: ready },
+    }));
+  }, []);
+
+  const handlePhaseChanged = useCallback((phase, readyMap) => {
+    setSessionState((prev) => ({
+      ...prev,
+      phase,
+      ready: readyMap,
+    }));
+  }, []);
+
+  const { isConnected, webSocketError, connect, setReady } = useSessionWebSocket(
+    sessionState.code,
+    sessionState.myName,
+    {
+      onMemberJoined: handleMemberJoined,
+      onMemberLeft: handleMemberLeft,
+      onMemberReady: handleMemberReady,
+      onPhaseChanged: handlePhaseChanged,
+    }
+  );
+
+  // Connect WebSocket when session becomes active
+  useEffect(() => {
+    if (sessionState.active && sessionState.code && sessionState.myName) {
+      connect();
+    }
+  }, [sessionState.active, sessionState.code, sessionState.myName, connect]);
 
   const handleCancelClick = () => {
     setHostClicked(false);
@@ -83,14 +133,15 @@ function Start() {
 
     hostSession(payload)
       .then((response) => {
-        let members = [];
-        members.push(payload.name);
         setSessionState({
           active: true,
           code: response.Code,
-          members: members,
+          members: [payload.name],
           host: payload.name,
+          myName: payload.name,
           title: sessionConfig.title,
+          ready: { [payload.name]: false },
+          phase: "lobby",
         });
         setIsLoading(false);
       })
@@ -110,12 +161,18 @@ function Start() {
         const host = response.Session.members.find(
           (member) => member.host
         ).name;
+        // Initialize ready state for all members as false. Will be updated when WebSocket messages arrive
+        const ready = {};
+        members.forEach((m) => (ready[m] = false));
         setSessionState({
           active: true,
           code: joinCode,
           members: members,
           host: host,
+          myName: joinName,
           title: response.Session.title,
+          ready: ready,
+          phase: "lobby",
         });
         setIsLoading(false);
       })
@@ -125,11 +182,6 @@ function Start() {
           visible: true,
         });
       });
-  };
-
-  const handleStartSessionClick = () => {
-    setIsLoading(true);
-    // TODO
   };
 
   return (
@@ -146,8 +198,8 @@ function Start() {
                 height={500}
               />
               <div>
-                To begin, <Button onClick={handleJoinClick}>Join</Button> or{" "}
-                <Button onClick={handleHostClick}>Host</Button> a session
+                To begin, <Button onClick={() => setJoinClicked(true)}>Join</Button> or{" "}
+                <Button onClick={() => setHostClicked(true)}>Host</Button> a session
               </div>
             </>
           )}
@@ -268,18 +320,20 @@ function Start() {
                     </RadioGroup>
                   </div>
                 </div>
-                <div className="flex items-center justify-evenly mt-6">
-                  <Button
-                    variant="outline"
-                    className="w-20"
-                    onClick={handleCancelClick}
-                  >
-                    Cancel
-                  </Button>
-                  <Button className="w-30" onClick={handleHostSessionClick}>
-                    Host Session
-                  </Button>
-                </div>
+                {!isLoading && 
+                  <div className="flex items-center justify-evenly mt-6">
+                    <Button
+                      variant="outline"
+                      className="w-20"
+                      onClick={handleCancelClick}
+                    >
+                      Cancel
+                    </Button>
+                    <Button className="w-30" onClick={handleHostSessionClick}>
+                      Host Session
+                    </Button>
+                  </div>}
+                {isLoading && <Spinner className="self-center size-8 mt-4" />}
               </CardContent>
             </Card>
           )}
@@ -339,7 +393,7 @@ function Start() {
                       </Button>
                     </>
                   )}
-                  {isLoading && <Spinner className="size-8 mt-4" />}
+                  {isLoading && <Spinner className="self-center size-8 mt-4" />}
                 </div>
               </CardContent>
             </Card>
@@ -347,7 +401,7 @@ function Start() {
         </>
       )}
 
-      {sessionState.active && (
+      {sessionState.active && sessionState.phase === "lobby" && (
         <Card className="w-full max-w-sm m-10">
           <CardHeader>
             <CardTitle className="text-2xl">{sessionState.title}</CardTitle>
@@ -355,27 +409,43 @@ function Start() {
               Join Code: {sessionState.code.toUpperCase()}
             </CardDescription>
             <CardAction>
-              <div className="flex items-center">
-                {isLoading && <Spinner className="size-8 mt-4" />}
-                {!isLoading && (
-                  <Button className="w-30" onClick={handleStartSessionClick}>
-                    Start Session
-                  </Button>
-                )}
-              </div>
+              <Button
+                variant={sessionState.ready[sessionState.myName] ? "outline" : "default"}
+                onClick={() => setReady(!sessionState.ready[sessionState.myName])}
+                disabled={!isConnected}
+              >
+                {sessionState.ready[sessionState.myName] ? "Not Ready" : "Ready"}
+              </Button>
             </CardAction>
           </CardHeader>
           <CardContent>
-            <div className="text-md underline">Members</div>
-            <ul>
-              {sessionState?.members.map((member) =>
-                member === sessionState.host ? (
-                  <li key={member}>{member} (host)</li>
-                ) : (
-                  <li key={member}>{member}</li>
-                )
-              )}
+            <div className="text-md underline mb-2">Members</div>
+            <ul className="space-y-1">
+              {sessionState?.members.map((member) => (
+                <li key={member} className="flex items-center gap-2">
+                  <span
+                    className={`w-2 h-2 rounded-full ${sessionState.ready[member] ? "bg-green-500" : "bg-gray-300"}`}
+                  />
+                  <span>
+                    {member}
+                    {member === sessionState.host && " (host)"}
+                    {member === sessionState.myName && " (you)"}
+                  </span>
+                </li>
+              ))}
             </ul>
+          </CardContent>
+        </Card>
+      )}
+
+      {sessionState.active && sessionState.phase === "voting" && (
+        <Card className="w-full max-w-sm m-10">
+          <CardHeader>
+            <CardTitle className="text-2xl">{sessionState.title}</CardTitle>
+            <CardDescription>Voting Phase</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p>All members are ready. Voting has begun!</p>
           </CardContent>
         </Card>
       )}
