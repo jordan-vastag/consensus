@@ -192,10 +192,11 @@ function Start() {
           {!(hostClicked || joinClicked) && (
             <>
               <Image
-                src="/dns-svgrepo-com.svg"
+                src="/temp-logo.svg"
                 alt="Placeholder Logo"
                 width={500}
                 height={500}
+                loading="eager"
               />
               <div>
                 To begin, <Button onClick={() => setJoinClicked(true)}>Join</Button> or{" "}
