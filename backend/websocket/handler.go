@@ -60,11 +60,9 @@ func (h *Handler) HandleWebSocket(c *gin.Context) {
 
 	// Validate member is in session
 	memberFound := false
-	var isHost bool
 	for _, member := range session.Members {
 		if member.Name == memberName {
 			memberFound = true
-			isHost = member.Host
 			break
 		}
 	}
@@ -83,13 +81,6 @@ func (h *Handler) HandleWebSocket(c *gin.Context) {
 
 	client := NewClient(h.hub, conn, sessionCode, memberName)
 	h.hub.Register(client)
-
-	// Broadcast member joined to others
-	h.hub.BroadcastToSession(sessionCode, MemberJoinedMsg{
-		Type:       TypeMemberJoined,
-		MemberName: memberName,
-		Host:       isHost,
-	})
 
 	// Start pumps
 	go client.writePump()
