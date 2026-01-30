@@ -3,6 +3,7 @@ package handlers
 import (
 	"consensus/models"
 	"consensus/repository"
+	"consensus/websocket"
 	"context"
 	"fmt"
 	"math/rand"
@@ -17,11 +18,13 @@ const REQUEST_TIMEOUT_SECONDS = 5
 
 type SessionHandler struct {
 	repo *repository.SessionRepository
+	hub  *websocket.Hub
 }
 
-func NewSessionHandler(repo *repository.SessionRepository) *SessionHandler {
+func NewSessionHandler(repo *repository.SessionRepository, hub *websocket.Hub) *SessionHandler {
 	return &SessionHandler{
 		repo: repo,
+		hub:  hub,
 	}
 }
 
@@ -114,6 +117,7 @@ func (h *SessionHandler) CreateSession(c *gin.Context) {
 }
 
 func (h *SessionHandler) JoinSession(c *gin.Context) {
+	// TODO: ensure session phase is 'lobby'
 	var req models.JoinSessionRequest
 	code := strings.ToLower(c.Param("code"))
 
@@ -134,7 +138,7 @@ func (h *SessionHandler) JoinSession(c *gin.Context) {
 		return
 	}
 
-	if !time.Time.Equal(session.ClosedAt, time.Time{}) {
+	if !session.ClosedAt.IsZero() {
 		c.JSON(http.StatusGone, models.ErrorResponse{
 			Error: "Session is closed",
 		})
@@ -167,11 +171,91 @@ func (h *SessionHandler) JoinSession(c *gin.Context) {
 		return
 	}
 
+	// Broadcast to connected WebSocket clients
+	h.hub.BroadcastToSession(code, websocket.MemberJoinedMsg{
+		Type:       websocket.TypeMemberJoined,
+		MemberName: joinee.Name,
+		Host:       joinee.Host,
+	})
+
 	session.Members = append(session.Members, joinee)
 
 	c.JSON(http.StatusOK, models.JoinSessionResponse{
 		Msg:     "Session joined",
 		Session: *session,
+	})
+}
+
+func (h *SessionHandler) LeaveSession(c *gin.Context) {
+	var req models.LeaveSessionRequest
+	code := strings.ToLower(c.Param("code"))
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), REQUEST_TIMEOUT_SECONDS*time.Second)
+	defer cancel()
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+
+	session, err := h.repo.FindSessionByCode(ctx, code)
+	if err != nil {
+		c.JSON(http.StatusNotFound, models.ErrorResponse{
+			Error: "Session not found",
+		})
+		return
+	}
+
+	if !session.ClosedAt.IsZero() {
+		c.JSON(http.StatusGone, models.ErrorResponse{
+			Error: "Session is closed",
+		})
+		return
+	}
+
+	// Find the member to check if they exist and if they're the host
+	var memberExists bool
+	var isHost bool
+	for _, member := range session.Members {
+		if member.Name == req.Name {
+			memberExists = true
+			isHost = member.Host
+			break
+		}
+	}
+
+	if !memberExists {
+		c.JSON(http.StatusNotFound, models.ErrorResponse{
+			Error: "Member not found in session",
+		})
+		return
+	}
+
+	if isHost {
+		c.JSON(http.StatusForbidden, models.ErrorResponse{
+			Error: "Host cannot leave the session",
+		})
+		return
+	}
+
+	err = h.repo.RemoveMemberFromSession(ctx, code, req.Name)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+
+	// Broadcast to connected WebSocket clients
+	h.hub.BroadcastToSession(code, websocket.MemberLeftMsg{
+		Type:       websocket.TypeMemberLeft,
+		MemberName: req.Name,
+	})
+
+	c.JSON(http.StatusOK, models.MsgResponse{
+		Msg: "Left session",
 	})
 }
 
@@ -233,6 +317,7 @@ func (h *SessionHandler) GetSessions(c *gin.Context) {
 }
 
 func (h *SessionHandler) UpdateSessionConfig(c *gin.Context) {
+	// TODO: check if session is active
 	var req models.UpdateSessionConfigRequest
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), REQUEST_TIMEOUT_SECONDS*time.Second)
@@ -260,6 +345,7 @@ func (h *SessionHandler) UpdateSessionConfig(c *gin.Context) {
 }
 
 func (h *SessionHandler) CloseSession(c *gin.Context) {
+	// TODO: check if session is active
 	var req models.CloseSessionRequest
 	code := strings.ToLower(c.Param("code"))
 
@@ -324,7 +410,7 @@ func (h *SessionHandler) UpdateMember(c *gin.Context) {
 		return
 	}
 
-	if !time.Time.Equal(session.ClosedAt, time.Time{}) {
+	if !session.ClosedAt.IsZero() {
 		c.JSON(http.StatusGone, models.ErrorResponse{
 			Error: "Session is closed",
 		})

@@ -113,6 +113,30 @@ func (repo *SessionRepository) FindActiveSessions(ctx context.Context) (activeSe
 	return activeSessions, nil
 }
 
+func (repo *SessionRepository) RemoveMemberFromSession(ctx context.Context, code string, name string) error {
+	filter := bson.D{
+		{"code", bson.D{{"$eq", code}}},
+	}
+
+	update := bson.D{
+		{"$pull", bson.D{
+			{"members", bson.D{{"name", name}}},
+		}},
+		{"$set", bson.D{
+			{"updatedAt", time.Now()},
+		}},
+	}
+
+	result, err := repo.session.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return err
+	} else if result.MatchedCount == 0 {
+		return fmt.Errorf("failed to find session")
+	}
+
+	return nil
+}
+
 func (repo *SessionRepository) AddMemberToSession(ctx context.Context, code string, member models.Member) (err error) {
 	filter := bson.D{
 		{"code", bson.D{{"$eq", code}}},
