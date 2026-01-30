@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -55,7 +54,6 @@ type TMDBMetadata struct {
 func NewTMDBClient() *TMDBClient {
 	apiKey := os.Getenv("TMDB_API_KEY")
 	if apiKey == "" {
-		log.Println("TMDB_API_KEY environment variable not found. Using default value")
 		apiKey = "demo_key" // For development
 	}
 

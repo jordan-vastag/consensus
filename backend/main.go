@@ -10,7 +10,6 @@ import (
 	"consensus/repository"
 
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
 )
 
 const DB_NAME = "dev"
@@ -32,14 +31,8 @@ func CORSMiddleware() gin.HandlerFunc {
 }
 
 func main() {
-	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found, using environment variables")
-	}
-	log.Println("Loaded environment variables from .env")
-
 	mongoURI := os.Getenv("MONGO_URI")
 	if mongoURI == "" {
-		log.Println("MONGO_URI environment variable not found. Using default value")
 		mongoURI = "mongodb://localhost:27017"
 	}
 
