@@ -13,8 +13,10 @@ import {
 } from "@/ui/card";
 import { Input } from "@/ui/input";
 import { Spinner } from "@/ui/spinner";
+import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 
 const SESSION_KEY = "consensus_session_data";
 
@@ -280,15 +282,30 @@ export default function SessionPage() {
               Join Code: {sessionState.code.toUpperCase()}
             </CardDescription>
             <CardAction>
-              <Button
-                variant={
-                  sessionState.ready[sessionState.myName] ? "outline" : "default"
-                }
-                onClick={() => setReady(!sessionState.ready[sessionState.myName])}
-                disabled={!isConnected}
-              >
-                {sessionState.ready[sessionState.myName] ? "Not Ready" : "Ready"}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => {
+                    const url = `${window.location.origin}/s/${sessionState.code}`;
+                    navigator.clipboard.writeText(url);
+                    toast("Link copied to clipboard!", {
+                      description: "Share it with a friend to invite them.",
+                    });
+                  }}
+                >
+                  <Image src="/share.png" alt="Share" width={20} height={20} />
+                </Button>
+                <Button
+                  variant={
+                    sessionState.ready[sessionState.myName] ? "outline" : "default"
+                  }
+                  onClick={() => setReady(!sessionState.ready[sessionState.myName])}
+                  disabled={!isConnected}
+                >
+                  {sessionState.ready[sessionState.myName] ? "Not Ready" : "Ready"}
+                </Button>
+              </div>
             </CardAction>
           </CardHeader>
           <CardContent>
