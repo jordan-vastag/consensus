@@ -18,7 +18,7 @@ func Connect(uri string) error {
 	if err != nil {
 		return err
 	}
-	// 
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	// Ping the DB to verify connection
