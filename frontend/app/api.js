@@ -16,6 +16,16 @@ async function hostSession(payload) {
   return response.json();
 }
 
+async function getSession(code) {
+  const url = `${API_BASE_URL}/session/${code}`;
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(`Response status: ${response.status}`);
+  }
+  return response.json();
+}
+
 async function joinSession(code, name) {
   const url = `${API_BASE_URL}/session/${code}/join`;
   const response = await fetch(url, {
@@ -32,4 +42,4 @@ async function joinSession(code, name) {
   return response.json();
 }
 
-export { hostSession, joinSession };
+export { hostSession, getSession, joinSession };

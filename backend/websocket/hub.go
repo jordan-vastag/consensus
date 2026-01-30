@@ -154,3 +154,20 @@ func (h *Hub) GetReadyState(sessionCode string) map[string]bool {
 	defer h.mu.RUnlock()
 	return h.copyReadyMapLocked(sessionCode)
 }
+
+// GetConnectedMembers returns a list of member names currently connected to a session
+func (h *Hub) GetConnectedMembers(sessionCode string) []string {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	clients, ok := h.sessions[sessionCode]
+	if !ok {
+		return []string{}
+	}
+
+	members := make([]string, 0, len(clients))
+	for client := range clients {
+		members = append(members, client.memberName)
+	}
+	return members
+}

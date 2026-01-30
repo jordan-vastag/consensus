@@ -51,11 +51,11 @@ func main() {
 		})
 	})
 
+	sessionRepo := repository.NewSessionRepository(DB_NAME)
+
 	// Initialize WebSocket hub
 	hub := websocket.NewHub()
 	go hub.Run()
-
-	sessionRepo := repository.NewSessionRepository(DB_NAME)
 	sessionHandler := handlers.NewSessionHandler(sessionRepo, hub)
 	wsHandler := websocket.NewHandler(hub, sessionRepo)
 	sessionRoutes := router.Group("/api/session")

@@ -1,11 +1,9 @@
 "use client";
 
-import { hostSession, joinSession } from "@/app/api";
-import { useSessionWebSocket } from "@/hooks/useSessionWebSocket";
+import { hostSession } from "@/app/api";
 import { Button } from "@/ui/button";
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -24,20 +22,26 @@ import { RadioGroup, RadioGroupItem } from "@/ui/radio-group";
 import { Spinner } from "@/ui/spinner";
 import { REGEXP_ONLY_DIGITS_AND_CHARS } from "input-otp";
 import Image from "next/image";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
-const STORAGE_KEY = "consensus_user_name";
+const SESSION_KEY = "consensus_session_data";
+
+function getSavedSession() {
+  if (typeof window === "undefined") return null;
+  const saved = localStorage.getItem(SESSION_KEY);
+  if (!saved) return null;
+  const parsed = JSON.parse(saved);
+  return parsed?.code && parsed?.name ? parsed : null;
+}
 
 export default function Home() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
-  const [isRejoining, setIsRejoining] = useState(null);
+  const [savedSessionData, setSavedSessionData] = useState(getSavedSession);
   const [hostClicked, setHostClicked] = useState(false);
   const [joinClicked, setJoinClicked] = useState(false);
   const [joinCode, setJoinCode] = useState("");
-  const [joinName, setJoinName] = useState("");
   const [errorMessage, setErrorMessage] = useState({
     visible: false,
     text: "Something went wrong. Please reload the page and try again later if the problem persists.",
@@ -52,114 +56,14 @@ export default function Home() {
     grace_period_seconds: 3,
     allow_empty_voters: false,
   });
-  const [sessionState, setSessionState] = useState({
-    active: false,
-    code: "",
-    members: [],
-    host: "",
-    myName: "",
-    ready: {}, // memberName → ready status
-    phase: "lobby",
-  });
 
-  // WebSocket handlers
-  const handleMemberJoined = useCallback((memberName) => {
-    setSessionState((prev) => ({
-      ...prev,
-      members: [...prev.members, memberName],
-      ready: { ...prev.ready, [memberName]: false },
-    }));
-  }, []);
-
-  const handleMemberLeft = useCallback((memberName) => {
-    setSessionState((prev) => {
-      const newReady = { ...prev.ready };
-      delete newReady[memberName];
-      return {
-        ...prev,
-        members: prev.members.filter((m) => m !== memberName),
-        ready: newReady,
-      };
-    });
-  }, []);
-
-  const handleMemberReady = useCallback((memberName, ready) => {
-    setSessionState((prev) => ({
-      ...prev,
-      ready: { ...prev.ready, [memberName]: ready },
-    }));
-  }, []);
-
-  const handlePhaseChanged = useCallback((phase, readyMap) => {
-    setSessionState((prev) => ({
-      ...prev,
-      phase,
-      ready: readyMap,
-    }));
-  }, []);
-
-  const { isConnected, webSocketError, connect, setReady } = useSessionWebSocket(
-    sessionState.code,
-    sessionState.myName,
-    {
-      onMemberJoined: handleMemberJoined,
-      onMemberLeft: handleMemberLeft,
-      onMemberReady: handleMemberReady,
-      onPhaseChanged: handlePhaseChanged,
-    }
-  );
-
-  // Connect WebSocket when session becomes active
-  useEffect(() => {
-    if (sessionState.active && sessionState.code && sessionState.myName) {
-      connect();
-    }
-  }, [sessionState.active, sessionState.code, sessionState.myName, connect]);
-
-  // Check for existing session on page load and attempt to rejoin
-  useEffect(() => {
-    // Only run once on mount when isRejoining is null (not checked yet)
-    if (isRejoining !== null) return;
-
-    const sessionCode = searchParams.get("session");
-    const savedName = localStorage.getItem(STORAGE_KEY);
-
-    if (sessionCode && savedName) {
-      console.log("Rejoining session", sessionCode, "as", savedName);
-      rejoinSession(sessionCode, savedName)
-        .then((response) => {
-          const members = response.Session.members.map((member) => member.name);
-          const host = response.Session.members.find(
-            (member) => member.host
-          ).name;
-          const ready = {};
-          members.forEach((m) => (ready[m] = false));
-          setSessionState({
-            active: true,
-            code: sessionCode,
-            members: members,
-            host: host,
-            myName: savedName,
-            title: response.Session.title,
-            ready: ready,
-            phase: "lobby",
-          });
-        })
-        .catch(() => {
-          // Session no longer exists or rejoin failed - clear URL and show home
-          console.log("Rejoining session failed");
-          localStorage.removeItem(STORAGE_KEY);
-          router.replace("/");
-        })
-        .finally(() => {
-          setIsRejoining(false);
-        });
-    }
-  }, [isRejoining]); // eslint-disable-line react-hooks/exhaustive-deps
+  const showRejoinPrompt = savedSessionData !== null;
 
   const handleCancelClick = () => {
+    localStorage.removeItem(SESSION_KEY);
     setHostClicked(false);
     setJoinClicked(false);
+    setSavedSessionData(null);
   };
 
   const handleHostSessionClick = () => {
@@ -180,74 +84,41 @@ export default function Home() {
 
     hostSession(payload)
       .then((response) => {
-        localStorage.setItem(STORAGE_KEY, payload.name);
-        router.replace(`/?session=${response.Code}`);
-        setSessionState({
-          active: true,
-          code: response.Code,
-          members: [payload.name],
-          host: payload.name,
-          myName: payload.name,
-          title: sessionConfig.title,
-          ready: { [payload.name]: false },
-          phase: "lobby",
-        });
-        setIsLoading(false);
+        localStorage.setItem(
+          SESSION_KEY,
+          JSON.stringify({
+            name: payload.name,
+            code: response.Code,
+          })
+        );
+        router.push(`/s/${response.Code}`);
       })
       .catch(() => {
         setErrorMessage({
           ...errorMessage,
           visible: true,
         });
+        setIsLoading(false);
       });
   };
 
   const handleJoinSessionClick = () => {
-    setIsLoading(true);
-    joinSession(joinCode, joinName)
-      .then((response) => {
-        const members = response.Session.members.map((member) => member.name);
-        const host = response.Session.members.find(
-          (member) => member.host
-        ).name;
-        // Initialize ready state for all members as false. Will be updated when WebSocket messages arrive
-        const ready = {};
-        members.forEach((m) => (ready[m] = false));
-        localStorage.setItem(STORAGE_KEY, joinName);
-        router.replace(`/?session=${joinCode}`);
-        setSessionState({
-          active: true,
-          code: joinCode,
-          members: members,
-          host: host,
-          myName: joinName,
-          title: response.Session.title,
-          ready: ready,
-          phase: "lobby",
-        });
-        setIsLoading(false);
-      })
-      .catch(() => {
-        setErrorMessage({
-          text: "Failed to join session. Are you sure your code was correct?",
-          visible: true,
-        });
-      });
+    if (joinCode.length === 6) {
+      router.push(`/s/${joinCode.toLowerCase()}`);
+    }
   };
 
-  if (isRejoining) {
-    return (
-      <div className="flex justify-center items-center h-200 flex-col">
-        <h1 className="self-center text-7xl font-bold">Consensus</h1>
-        <Spinner className="size-8 mt-8" />
-      </div>
-    );
-  }
+  const handleRejoinClick = () => {
+    if (savedSessionData?.code) {
+      router.push(`/s/${savedSessionData.code}`);
+    }
+  };
 
   return (
     <div className="flex justify-center items-center h-200 flex-col">
       <h1 className="self-center text-7xl font-bold">Consensus</h1>
-      {!errorMessage.visible && !sessionState.active && (
+
+      {!errorMessage.visible && !showRejoinPrompt && (
         <>
           {!(hostClicked || joinClicked) && (
             <>
@@ -259,8 +130,10 @@ export default function Home() {
                 loading="eager"
               />
               <div>
-                To begin, <Button onClick={() => setJoinClicked(true)}>Join</Button> or{" "}
-                <Button onClick={() => setHostClicked(true)}>Host</Button> a session
+                To begin,{" "}
+                <Button onClick={() => setJoinClicked(true)}>Join</Button> or{" "}
+                <Button onClick={() => setHostClicked(true)}>Host</Button> a
+                session
               </div>
             </>
           )}
@@ -381,7 +254,7 @@ export default function Home() {
                     </RadioGroup>
                   </div>
                 </div>
-                {!isLoading && 
+                {!isLoading && (
                   <div className="flex items-center justify-evenly mt-6">
                     <Button
                       variant="outline"
@@ -393,7 +266,8 @@ export default function Home() {
                     <Button className="w-30" onClick={handleHostSessionClick}>
                       Host Session
                     </Button>
-                  </div>}
+                  </div>
+                )}
                 {isLoading && <Spinner className="self-center size-8 mt-4" />}
               </CardContent>
             </Card>
@@ -406,15 +280,6 @@ export default function Home() {
               </CardHeader>
               <CardContent>
                 <div className="flex flex-col items-center space-x-2 gap-2">
-                  <Input
-                    id="host-name"
-                    placeholder="Name"
-                    className="mb-4"
-                    value={joinName}
-                    onChange={(e) => {
-                      setJoinName(e.target.value);
-                    }}
-                  />
                   <InputOTP
                     maxLength={6}
                     pattern={REGEXP_ONLY_DIGITS_AND_CHARS}
@@ -435,26 +300,23 @@ export default function Home() {
                       <InputOTPSlot index={5} />
                     </InputOTPGroup>
                   </InputOTP>
-                  <div className="text-center text-sm">
-                    Enter your join code
-                  </div>
+                  <div className="text-center text-sm">Join code</div>
                 </div>
                 <div className="flex items-center justify-evenly mt-6">
-                  {!isLoading && (
-                    <>
-                      <Button
-                        variant="outline"
-                        className="w-20"
-                        onClick={handleCancelClick}
-                      >
-                        Cancel
-                      </Button>
-                      <Button className="w-30" onClick={handleJoinSessionClick}>
-                        Join Session
-                      </Button>
-                    </>
-                  )}
-                  {isLoading && <Spinner className="self-center size-8 mt-4" />}
+                  <Button
+                    variant="outline"
+                    className="w-20"
+                    onClick={handleCancelClick}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    className="w-30"
+                    onClick={handleJoinSessionClick}
+                    disabled={joinCode.length !== 6}
+                  >
+                    Join Session
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -462,51 +324,32 @@ export default function Home() {
         </>
       )}
 
-      {sessionState.active && sessionState.phase === "lobby" && (
+      {showRejoinPrompt && savedSessionData && (
         <Card className="w-full max-w-sm m-10">
           <CardHeader>
-            <CardTitle className="text-2xl">{sessionState.title}</CardTitle>
-            <CardDescription className="text-lg">
-              Join Code: {sessionState.code.toUpperCase()}
+            <CardTitle>
+              Hi {savedSessionData.name}, looks like you got disconnected!
+            </CardTitle>
+            <CardDescription>
+              Would you like to rejoin your previous session?
             </CardDescription>
-            <CardAction>
+            <CardDescription>
+              Code: {savedSessionData.code.toUpperCase()}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-evenly mt-2">
               <Button
-                variant={sessionState.ready[sessionState.myName] ? "outline" : "default"}
-                onClick={() => setReady(!sessionState.ready[sessionState.myName])}
-                disabled={!isConnected}
+                variant="outline"
+                className="w-20"
+                onClick={handleCancelClick}
               >
-                {sessionState.ready[sessionState.myName] ? "Not Ready" : "Ready"}
+                No
               </Button>
-            </CardAction>
-          </CardHeader>
-          <CardContent>
-            <div className="text-md underline mb-2">Members</div>
-            <ul className="space-y-1">
-              {sessionState?.members.map((member) => (
-                <li key={member} className="flex items-center gap-2">
-                  <span
-                    className={`w-2 h-2 rounded-full ${sessionState.ready[member] ? "bg-green-500" : "bg-gray-300"}`}
-                  />
-                  <span>
-                    {member}
-                    {member === sessionState.host && " (host)"}
-                    {member === sessionState.myName && " (you)"}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
-
-      {sessionState.active && sessionState.phase === "voting" && (
-        <Card className="w-full max-w-sm m-10">
-          <CardHeader>
-            <CardTitle className="text-2xl">{sessionState.title}</CardTitle>
-            <CardDescription>Voting Phase</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p>All members are ready. Voting has begun!</p>
+              <Button className="w-30" onClick={handleRejoinClick}>
+                Yes
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}

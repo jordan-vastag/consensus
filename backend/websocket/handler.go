@@ -3,6 +3,7 @@ package websocket
 import (
 	"consensus/repository"
 	"context"
+	"encoding/json"
 	"log"
 	"net/http"
 	"strings"
@@ -58,16 +59,22 @@ func (h *Handler) HandleWebSocket(c *gin.Context) {
 		return
 	}
 
-	// Validate member is in session
-	memberFound := false
+	// Validate member is in session and get their host status
+	var memberInfo *struct {
+		found bool
+		host  bool
+	}
 	for _, member := range session.Members {
 		if member.Name == memberName {
-			memberFound = true
+			memberInfo = &struct {
+				found bool
+				host  bool
+			}{found: true, host: member.Host}
 			break
 		}
 	}
 
-	if !memberFound {
+	if memberInfo == nil {
 		c.JSON(http.StatusForbidden, gin.H{"error": "member not in session"})
 		return
 	}
@@ -81,6 +88,35 @@ func (h *Handler) HandleWebSocket(c *gin.Context) {
 
 	client := NewClient(h.hub, conn, sessionCode, memberName)
 	h.hub.Register(client)
+
+	// Send currently connected users to the newly connected client
+	// Note: Registration is async, so we need to ensure current user is included
+	connectedMembers := h.hub.GetConnectedMembers(sessionCode)
+	// Ensure the current member is in the list (in case registration hasn't completed yet)
+	found := false
+	for _, m := range connectedMembers {
+		if m == memberName {
+			found = true
+			break
+		}
+	}
+	if !found {
+		connectedMembers = append(connectedMembers, memberName)
+	}
+	syncMsg := ConnectedUsersMsg{
+		Type:    TypeConnectedUsers,
+		Members: connectedMembers,
+	}
+	if data, err := json.Marshal(syncMsg); err == nil {
+		client.send <- data
+	}
+
+	// Broadcast member joined to other clients in the session
+	h.hub.BroadcastToSession(sessionCode, MemberJoinedMsg{
+		Type:       TypeMemberJoined,
+		MemberName: memberName,
+		Host:       memberInfo.host,
+	})
 
 	// Start pumps
 	go client.writePump()
