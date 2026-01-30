@@ -11,6 +11,7 @@ import (
 	"consensus/websocket"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 )
 
 const DB_NAME = "dev"
@@ -32,8 +33,14 @@ func CORSMiddleware() gin.HandlerFunc {
 }
 
 func main() {
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found, using environment variables")
+	}
+	log.Println("Loaded environment variables from .env")
+
 	mongoURI := os.Getenv("MONGO_URI")
 	if mongoURI == "" {
+		log.Println("MONGO_URI environment variable not found. Using default value")
 		mongoURI = "mongodb://localhost:27017"
 	}
 
@@ -71,6 +78,12 @@ func main() {
 		sessionRoutes.GET("/:code/member/:name", sessionHandler.GetMember)    // TODO: convert name from path param to query param
 		sessionRoutes.PUT("/:code/member/:name", sessionHandler.UpdateMember) // TODO: convert name from path param to query param
 		sessionRoutes.GET("/:code/ws", wsHandler.HandleWebSocket)
+	}
+
+	integrationHandler := handlers.NewIntegrationHandler()
+	integrationRoutes := router.Group("/api/integrations")
+	{
+		integrationRoutes.GET("/tmdb/search", integrationHandler.SearchTMDB)
 	}
 
 	if err := router.Run(":8080"); err != nil {

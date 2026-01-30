@@ -26,3 +26,8 @@ type CloseSessionRequest struct {
 type UpdateMemberRequest struct {
 	NewName string `json:"newName" binding:"required"`
 }
+
+type TMDBSearchRequest struct {
+	Query string `form:"q" binding:"required"`
+	Page  int    `form:"page" binding:"min=1"`
+}
