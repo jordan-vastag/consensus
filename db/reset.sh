@@ -5,7 +5,7 @@
 DB_NAME="dev"
 MONGO_URI="${MONGO_URI:-mongodb://localhost:27017}"
 
-read -p "Are you sure you want to reset the '$DB_NAME' database? [y/N]: " confirm
+read -rp "Are you sure you want to reset the '$DB_NAME' database? [y/N]: " confirm
 
 if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
   echo "Aborted."
