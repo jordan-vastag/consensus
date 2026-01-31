@@ -32,3 +32,15 @@ type Member struct {
 	CreatedAt time.Time `json:"createdAt" bson:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt" bson:"updatedAt"`
 }
+
+type Choice struct {
+	Code          string    `json:"code" bson:"code"`
+	Member        string    `json:"member" bson:"member"` // Name of member. Nil means that the choice is for whole session e.g. is aggregate list
+	Name          string    `json:"name" bson:"name"`
+	Integration   string    `json:"integration" bson:"integration"`
+	IntegrationID string    `json:"integrationID" bson:"integrationID"`
+	Description   string    `json:"description" bson:"description"`
+	Rank          int       `json:"rank" bson:"rank"`
+	CreatedAt     time.Time `json:"createdAt" bson:"createdAt"`
+	UpdatedAt     time.Time `json:"updatedAt" bson:"updatedAt"`
+}
