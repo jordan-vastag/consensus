@@ -14,8 +14,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const REQUEST_TIMEOUT_SECONDS = 5
-
 type SessionHandler struct {
 	repo *repository.SessionRepository
 	hub  *websocket.Hub
