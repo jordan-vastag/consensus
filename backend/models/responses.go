@@ -70,3 +70,18 @@ type TMDBSearchResponse struct {
 	Page    int                        `json:"page"`
 	Total   int                        `json:"total"`
 }
+
+type AddChoiceResponse struct {
+	Msg    string `json:"msg"`
+	Choice Choice `json:"choice"`
+}
+
+type GetChoicesResponse struct {
+	Msg     string   `json:"msg"`
+	Choices []Choice `json:"choices"`
+}
+
+type UpdateChoiceResponse struct {
+	Msg    string `json:"msg"`
+	Choice Choice `json:"choice"`
+}

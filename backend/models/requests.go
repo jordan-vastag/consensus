@@ -31,3 +31,19 @@ type TMDBSearchRequest struct {
 	Query string `form:"q" binding:"required"`
 	Page  int    `form:"page" binding:"min=1"`
 }
+
+type AddChoiceRequest struct {
+	Name          string `json:"name" binding:"required"`
+	Integration   string `json:"integration"`
+	IntegrationID string `json:"integrationID"`
+	Description   string `json:"description"`
+	Rank          int    `json:"rank"`
+}
+
+type UpdateChoiceRequest struct {
+	Name          string `json:"name" binding:"required"`
+	Integration   string `json:"integration"`
+	IntegrationID string `json:"integrationID"`
+	Description   string `json:"description"`
+	Rank          int    `json:"rank"`
+}
