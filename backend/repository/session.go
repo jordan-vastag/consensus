@@ -26,6 +26,8 @@ func (repo *SessionRepository) CreateSession(ctx context.Context, session *model
 	now := time.Now()
 	session.CreatedAt = now
 	session.UpdatedAt = now
+	session.Config.CreatedAt = now
+	session.Config.UpdatedAt = now
 	for i := range session.Members {
 		session.Members[i].CreatedAt = now
 		session.Members[i].UpdatedAt = now
