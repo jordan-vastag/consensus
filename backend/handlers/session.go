@@ -82,24 +82,17 @@ func (h *SessionHandler) CreateSession(c *gin.Context) {
 		return
 	}
 
-	currentTime := time.Now()
 	host := models.Member{
-		Code:      sessionCode,
-		Name:      req.Name,
-		Host:      true,
-		CreatedAt: currentTime,
-		UpdatedAt: currentTime,
+		Code: sessionCode,
+		Name: req.Name,
+		Host: true,
 	}
-	members := []models.Member{host}
 
 	newSession := models.Session{
-		Code:      sessionCode,
-		Members:   members,
-		Title:     req.Title,
-		Config:    req.Config,
-		CreatedAt: currentTime,
-		UpdatedAt: currentTime,
-		ClosedAt:  time.Time{},
+		Code:    sessionCode,
+		Members: []models.Member{host},
+		Title:   req.Title,
+		Config:  req.Config,
 	}
 
 	err = h.repo.CreateSession(ctx, &newSession)
@@ -154,13 +147,10 @@ func (h *SessionHandler) JoinSession(c *gin.Context) {
 		}
 	}
 
-	currentTime := time.Now()
 	joinee := models.Member{
-		Code:      code,
-		Name:      req.Name,
-		Host:      false,
-		CreatedAt: currentTime,
-		UpdatedAt: currentTime,
+		Code: code,
+		Name: req.Name,
+		Host: false,
 	}
 
 	err = h.repo.AddMemberToSession(ctx, code, joinee)

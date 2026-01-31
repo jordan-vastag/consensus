@@ -23,6 +23,13 @@ func NewSessionRepository(dbName string) *SessionRepository {
 }
 
 func (repo *SessionRepository) CreateSession(ctx context.Context, session *models.Session) (err error) {
+	now := time.Now()
+	session.CreatedAt = now
+	session.UpdatedAt = now
+	for i := range session.Members {
+		session.Members[i].CreatedAt = now
+		session.Members[i].UpdatedAt = now
+	}
 	_, err = repo.session.InsertOne(ctx, session)
 	if err != nil {
 		return err
@@ -138,6 +145,10 @@ func (repo *SessionRepository) RemoveMemberFromSession(ctx context.Context, code
 }
 
 func (repo *SessionRepository) AddMemberToSession(ctx context.Context, code string, member models.Member) (err error) {
+	now := time.Now()
+	member.CreatedAt = now
+	member.UpdatedAt = now
+
 	filter := bson.D{
 		{"code", bson.D{{"$eq", code}}},
 	}
@@ -147,7 +158,7 @@ func (repo *SessionRepository) AddMemberToSession(ctx context.Context, code stri
 			{"members", member},
 		}},
 		{"$set", bson.D{
-			{"updatedAt", time.Now()},
+			{"updatedAt", now},
 		}},
 	}
 
