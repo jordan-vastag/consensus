@@ -1,0 +1,22 @@
+meta {
+  name: Remove Choice
+  type: http
+  seq: 14
+}
+
+delete {
+  url: http://{{base-url}}/api/session/:code/member/:name/choice/:title
+  body: none
+  auth: inherit
+}
+
+params:path {
+  code:
+  name: Jordan
+  title: The Matrix
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
