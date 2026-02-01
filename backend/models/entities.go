@@ -35,8 +35,10 @@ type Member struct {
 }
 
 type Vote struct {
-	MemberName string `json:"memberName" bson:"memberName"`
-	Value      int    `json:"value" bson:"value"` // rank # for ranked_choice, 1/0 for yes_no
+	MemberName string    `json:"memberName" bson:"memberName"`
+	Value      int       `json:"value" bson:"value"` // rank # for ranked_choice, 1/0 for yes_no
+	CreatedAt  time.Time `json:"createdAt" bson:"createdAt"`
+	UpdatedAt  time.Time `json:"updatedAt" bson:"updatedAt"`
 }
 
 type Choice struct {

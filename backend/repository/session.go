@@ -33,6 +33,20 @@ func (repo *SessionRepository) CreateSession(ctx context.Context, session *model
 		session.Members[i].CreatedAt = now
 		session.Members[i].UpdatedAt = now
 	}
+	if session.Choices == nil {
+		session.Choices = []models.Choice{}
+	}
+	for i := range session.Choices {
+		session.Choices[i].CreatedAt = now
+		session.Choices[i].UpdatedAt = now
+		if session.Choices[i].Votes == nil {
+			session.Choices[i].Votes = []models.Vote{}
+		}
+		for j := range session.Choices[i].Votes {
+			session.Choices[i].Votes[j].CreatedAt = now
+			session.Choices[i].Votes[j].UpdatedAt = now
+		}
+	}
 	_, err = repo.session.InsertOne(ctx, session)
 	if err != nil {
 		return err
@@ -362,6 +376,117 @@ func (repo *SessionRepository) RemoveAllChoicesByMemberName(ctx context.Context,
 		return err
 	} else if result.MatchedCount == 0 {
 		return fmt.Errorf("failed to find session")
+	}
+
+	return nil
+}
+
+// Vote operations
+
+func (repo *SessionRepository) AddVote(ctx context.Context, code string, choiceTitle string, vote models.Vote) error {
+	now := time.Now()
+	vote.CreatedAt = now
+	vote.UpdatedAt = now
+
+	filter := bson.D{
+		{"code", bson.D{{"$eq", code}}},
+		{"choices.title", bson.D{{"$eq", choiceTitle}}},
+	}
+
+	update := bson.D{
+		{"$push", bson.D{
+			{"choices.$[choice].votes", vote},
+		}},
+		{"$set", bson.D{
+			{"choices.$[choice].updatedAt", now},
+			{"updatedAt", now},
+		}},
+	}
+
+	arrayFilters := []any{
+		bson.D{
+			{"choice.title", choiceTitle},
+		},
+	}
+
+	result, err := repo.session.UpdateOne(ctx, filter, update, options.UpdateOne().SetArrayFilters(arrayFilters))
+	if err != nil {
+		return err
+	} else if result.MatchedCount == 0 {
+		return fmt.Errorf("failed to find choice")
+	}
+
+	return nil
+}
+
+func (repo *SessionRepository) UpdateVote(ctx context.Context, code string, choiceTitle string, memberName string, newValue int) error {
+	now := time.Now()
+
+	filter := bson.D{
+		{"code", bson.D{{"$eq", code}}},
+		{"choices.title", bson.D{{"$eq", choiceTitle}}},
+		{"choices.votes.memberName", bson.D{{"$eq", memberName}}},
+	}
+
+	update := bson.D{
+		{"$set", bson.D{
+			{"choices.$[choice].votes.$[vote].value", newValue},
+			{"choices.$[choice].votes.$[vote].updatedAt", now},
+			{"choices.$[choice].updatedAt", now},
+			{"updatedAt", now},
+		}},
+	}
+
+	arrayFilters := []any{
+		bson.D{
+			{"choice.title", choiceTitle},
+		},
+		bson.D{
+			{"vote.memberName", memberName},
+		},
+	}
+
+	result, err := repo.session.UpdateOne(ctx, filter, update, options.UpdateOne().SetArrayFilters(arrayFilters))
+	if err != nil {
+		return err
+	} else if result.MatchedCount == 0 {
+		return fmt.Errorf("failed to find vote")
+	}
+
+	return nil
+}
+
+func (repo *SessionRepository) RemoveVote(ctx context.Context, code string, choiceTitle string, memberName string) error {
+	now := time.Now()
+
+	filter := bson.D{
+		{"code", bson.D{{"$eq", code}}},
+		{"choices.title", bson.D{{"$eq", choiceTitle}}},
+	}
+
+	update := bson.D{
+		{"$pull", bson.D{
+			{"choices.$[choice].votes", bson.D{
+				{"memberName", memberName},
+			}},
+		}},
+		{"$set", bson.D{
+			{"choices.$[choice].updatedAt", now},
+			{"updatedAt", now},
+		}},
+	}
+
+	arrayFilters := []any{
+		bson.D{
+			{"choice.title", choiceTitle},
+		},
+	}
+
+	result, err := repo.session.UpdateOne(ctx, filter, update, options.UpdateOne().SetArrayFilters(arrayFilters))
+	if err != nil {
+		return err
+	} else if result.MatchedCount == 0 {
+		return fmt.Errorf("failed to find choice")
 	}
 
 	return nil
