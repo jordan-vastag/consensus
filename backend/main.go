@@ -64,7 +64,6 @@ func main() {
 	hub := websocket.NewHub()
 	go hub.Run()
 	sessionHandler := handlers.NewSessionHandler(sessionRepo, hub)
-	choiceHandler := handlers.NewChoiceHandler(sessionRepo, hub)
 	wsHandler := websocket.NewHandler(hub, sessionRepo)
 	sessionRoutes := router.Group("/api/session")
 	{
@@ -81,11 +80,11 @@ func main() {
 		sessionRoutes.PUT("/:code/member/:name", sessionHandler.UpdateMember) // TODO: convert name from path param to query param
 		sessionRoutes.GET("/:code/ws", wsHandler.HandleWebSocket)
 
-		sessionRoutes.POST("/:code/member/:name/choice", choiceHandler.AddMemberChoice)
-		sessionRoutes.GET("/:code/member/:name/choice", choiceHandler.GetMemberChoices)
-		sessionRoutes.PUT("/:code/member/:name/choice/:title", choiceHandler.UpdateMemberChoice)
-		sessionRoutes.DELETE("/:code/member/:name/choice/:title", choiceHandler.RemoveMemberChoice)
-		sessionRoutes.DELETE("/:code/member/:name/choice", choiceHandler.ClearMemberChoices)
+		sessionRoutes.POST("/:code/member/:name/choice", sessionHandler.AddMemberChoice)
+		sessionRoutes.GET("/:code/member/:name/choice", sessionHandler.GetMemberChoices)
+		sessionRoutes.PUT("/:code/member/:name/choice/:title", sessionHandler.UpdateMemberChoice)
+		sessionRoutes.DELETE("/:code/member/:name/choice/:title", sessionHandler.RemoveMemberChoice)
+		sessionRoutes.DELETE("/:code/member/:name/choice", sessionHandler.ClearMemberChoices)
 	}
 
 	integrationHandler := handlers.NewIntegrationHandler()
