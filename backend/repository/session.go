@@ -10,6 +10,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 type SessionRepository struct {
@@ -221,4 +222,147 @@ func (repo *SessionRepository) FindAllMembers(ctx context.Context, code string) 
 	}
 
 	return session.Members, nil
+}
+
+func (repo *SessionRepository) AddChoice(ctx context.Context, code string, choice models.Choice) error {
+	now := time.Now()
+	choice.CreatedAt = now
+	choice.UpdatedAt = now
+	choice.Votes = []models.Vote{}
+
+	filter := bson.D{
+		{"code", bson.D{{"$eq", code}}},
+	}
+
+	update := bson.D{
+		{"$push", bson.D{
+			{"choices", choice},
+		}},
+		{"$set", bson.D{
+			{"updatedAt", now},
+		}},
+	}
+
+	result, err := repo.session.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return err
+	} else if result.MatchedCount == 0 {
+		return fmt.Errorf("failed to find session")
+	}
+
+	return nil
+}
+
+func (repo *SessionRepository) FindChoicesByMemberName(ctx context.Context, code string, memberName string) ([]models.Choice, error) {
+	session, err := repo.FindSessionByCode(ctx, code)
+	if err != nil {
+		return nil, err
+	}
+
+	var choices []models.Choice
+	for _, c := range session.Choices {
+		if c.MemberName == memberName {
+			choices = append(choices, c)
+		}
+	}
+
+	return choices, nil
+}
+
+func (repo *SessionRepository) FindAllChoices(ctx context.Context, code string) ([]models.Choice, error) {
+	session, err := repo.FindSessionByCode(ctx, code)
+	if err != nil {
+		return nil, err
+	}
+
+	return session.Choices, nil
+}
+
+func (repo *SessionRepository) UpdateChoice(ctx context.Context, code string, memberName string, title string, newChoice *models.Choice) error {
+	filter := bson.D{
+		{"code", bson.D{{"$eq", code}}},
+		{"choices.memberName", bson.D{{"$eq", memberName}}},
+		{"choices.title", bson.D{{"$eq", title}}},
+	}
+
+	now := time.Now()
+	update := bson.D{
+		{"$set", bson.D{
+			{"choices.$[choice].title", newChoice.Title},
+			{"choices.$[choice].integration", newChoice.Integration},
+			{"choices.$[choice].integrationID", newChoice.IntegrationID},
+			{"choices.$[choice].description", newChoice.Description},
+			{"choices.$[choice].updatedAt", now},
+			{"updatedAt", now},
+		}},
+	}
+
+	arrayFilters := []any{
+		bson.D{
+			{"choice.memberName", memberName},
+			{"choice.title", title},
+		},
+	}
+
+	result, err := repo.session.UpdateOne(ctx, filter, update, options.UpdateOne().SetArrayFilters(arrayFilters))
+	if err != nil {
+		return err
+	} else if result.MatchedCount == 0 {
+		return fmt.Errorf("failed to find choice")
+	}
+
+	return nil
+}
+
+func (repo *SessionRepository) RemoveChoice(ctx context.Context, code string, memberName string, title string) error {
+	filter := bson.D{
+		{"code", bson.D{{"$eq", code}}},
+	}
+
+	update := bson.D{
+		{"$pull", bson.D{
+			{"choices", bson.D{
+				{"memberName", memberName},
+				{"title", title},
+			}},
+		}},
+		{"$set", bson.D{
+			{"updatedAt", time.Now()},
+		}},
+	}
+
+	result, err := repo.session.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return err
+	} else if result.MatchedCount == 0 {
+		return fmt.Errorf("failed to find session")
+	}
+
+	return nil
+}
+
+func (repo *SessionRepository) RemoveAllChoicesByMemberName(ctx context.Context, code string, memberName string) error {
+	filter := bson.D{
+		{"code", bson.D{{"$eq", code}}},
+	}
+
+	update := bson.D{
+		{"$pull", bson.D{
+			{"choices", bson.D{
+				{"memberName", memberName},
+			}},
+		}},
+		{"$set", bson.D{
+			{"updatedAt", time.Now()},
+		}},
+	}
+
+	result, err := repo.session.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return err
+	} else if result.MatchedCount == 0 {
+		return fmt.Errorf("failed to find session")
+	}
+
+	return nil
 }

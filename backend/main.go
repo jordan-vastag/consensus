@@ -59,13 +59,12 @@ func main() {
 	})
 
 	sessionRepo := repository.NewSessionRepository(DB_NAME)
-	choiceRepo := repository.NewChoiceRepository(DB_NAME)
 
 	// Initialize WebSocket hub
 	hub := websocket.NewHub()
 	go hub.Run()
 	sessionHandler := handlers.NewSessionHandler(sessionRepo, hub)
-	choiceHandler := handlers.NewChoiceHandler(choiceRepo, hub)
+	choiceHandler := handlers.NewChoiceHandler(sessionRepo, hub)
 	wsHandler := websocket.NewHandler(hub, sessionRepo)
 	sessionRoutes := router.Group("/api/session")
 	{

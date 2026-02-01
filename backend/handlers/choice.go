@@ -13,11 +13,11 @@ import (
 )
 
 type ChoiceHandler struct {
-	repo *repository.ChoiceRepository
+	repo *repository.SessionRepository
 	hub  *websocket.Hub
 }
 
-func NewChoiceHandler(repo *repository.ChoiceRepository, hub *websocket.Hub) *ChoiceHandler {
+func NewChoiceHandler(repo *repository.SessionRepository, hub *websocket.Hub) *ChoiceHandler {
 	return &ChoiceHandler{
 		repo: repo,
 		hub:  hub,
@@ -40,16 +40,14 @@ func (h *ChoiceHandler) AddMemberChoice(c *gin.Context) {
 	}
 
 	choice := models.Choice{
-		Code:          code,
 		MemberName:    name,
 		Title:         req.Title,
 		Integration:   req.Integration,
 		IntegrationID: req.IntegrationID,
 		Description:   req.Description,
-		Rank:          req.Rank,
 	}
 
-	err := h.repo.CreateChoice(ctx, &choice)
+	err := h.repo.AddChoice(ctx, code, choice)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
 			Error: err.Error(),
@@ -101,13 +99,11 @@ func (h *ChoiceHandler) UpdateMemberChoice(c *gin.Context) {
 	}
 
 	updatedChoice := models.Choice{
-		Code:          code,
 		MemberName:    name,
 		Title:         req.Title,
 		Integration:   req.Integration,
 		IntegrationID: req.IntegrationID,
 		Description:   req.Description,
-		Rank:          req.Rank,
 	}
 
 	err := h.repo.UpdateChoice(ctx, code, name, title, &updatedChoice)

@@ -7,6 +7,7 @@ import (
 type Session struct {
 	Code      string        `json:"code" bson:"code"`
 	Members   []Member      `json:"members" bson:"members"`
+	Choices   []Choice      `json:"choices" bson:"choices"`
 	Title     string        `json:"title" bson:"title"`
 	Config    SessionConfig `json:"config" bson:"config"`
 	CreatedAt time.Time     `json:"createdAt" bson:"createdAt"`
@@ -33,14 +34,19 @@ type Member struct {
 	UpdatedAt time.Time `json:"updatedAt" bson:"updatedAt"`
 }
 
+type Vote struct {
+	MemberName string `json:"memberName" bson:"memberName"`
+	Value      int    `json:"value" bson:"value"` // rank # for ranked_choice, 1/0 for yes_no
+}
+
 type Choice struct {
-	Code          string    `json:"code" bson:"code"`
-	MemberName    string    `json:"memberName" bson:"memberName"` // Name of member. Nil means that the choice is for whole session e.g. is aggregate list
+	MemberName    string    `json:"memberName" bson:"memberName"`
 	Title         string    `json:"title" bson:"title"`
 	Integration   string    `json:"integration" bson:"integration"`
 	IntegrationID string    `json:"integrationID" bson:"integrationID"`
 	Description   string    `json:"description" bson:"description"`
-	Rank          int       `json:"rank" bson:"rank"`
+	Votes         []Vote    `json:"votes" bson:"votes"`
+	Rank          int       `json:"rank" bson:"rank"` // populated after voting
 	CreatedAt     time.Time `json:"createdAt" bson:"createdAt"`
 	UpdatedAt     time.Time `json:"updatedAt" bson:"updatedAt"`
 }
