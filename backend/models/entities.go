@@ -35,8 +35,8 @@ type Member struct {
 
 type Choice struct {
 	Code          string    `json:"code" bson:"code"`
-	Member        string    `json:"member" bson:"member"` // Name of member. Nil means that the choice is for whole session e.g. is aggregate list
-	Name          string    `json:"name" bson:"name"`
+	MemberName    string    `json:"memberName" bson:"memberName"` // Name of member. Nil means that the choice is for whole session e.g. is aggregate list
+	Title         string    `json:"title" bson:"title"`
 	Integration   string    `json:"integration" bson:"integration"`
 	IntegrationID string    `json:"integrationID" bson:"integrationID"`
 	Description   string    `json:"description" bson:"description"`

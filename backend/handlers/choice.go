@@ -27,7 +27,7 @@ func NewChoiceHandler(repo *repository.ChoiceRepository, hub *websocket.Hub) *Ch
 func (h *ChoiceHandler) AddMemberChoice(c *gin.Context) {
 	var req models.AddChoiceRequest
 	code := strings.ToLower(c.Param("code"))
-	member := c.Param("member")
+	name := c.Param("name")
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), REQUEST_TIMEOUT_SECONDS*time.Second)
 	defer cancel()
@@ -41,8 +41,8 @@ func (h *ChoiceHandler) AddMemberChoice(c *gin.Context) {
 
 	choice := models.Choice{
 		Code:          code,
-		Member:        member,
-		Name:          req.Name,
+		MemberName:    name,
+		Title:         req.Title,
 		Integration:   req.Integration,
 		IntegrationID: req.IntegrationID,
 		Description:   req.Description,
@@ -65,12 +65,12 @@ func (h *ChoiceHandler) AddMemberChoice(c *gin.Context) {
 
 func (h *ChoiceHandler) GetMemberChoices(c *gin.Context) {
 	code := strings.ToLower(c.Param("code"))
-	member := c.Param("member")
+	name := c.Param("name")
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), REQUEST_TIMEOUT_SECONDS*time.Second)
 	defer cancel()
 
-	choices, err := h.repo.FindChoicesByMember(ctx, code, member)
+	choices, err := h.repo.FindChoicesByMemberName(ctx, code, name)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
 			Error: err.Error(),
@@ -87,8 +87,8 @@ func (h *ChoiceHandler) GetMemberChoices(c *gin.Context) {
 func (h *ChoiceHandler) UpdateMemberChoice(c *gin.Context) {
 	var req models.UpdateChoiceRequest
 	code := strings.ToLower(c.Param("code"))
-	member := c.Param("member")
 	name := c.Param("name")
+	title := c.Param("title")
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), REQUEST_TIMEOUT_SECONDS*time.Second)
 	defer cancel()
@@ -102,15 +102,15 @@ func (h *ChoiceHandler) UpdateMemberChoice(c *gin.Context) {
 
 	updatedChoice := models.Choice{
 		Code:          code,
-		Member:        member,
-		Name:          req.Name,
+		MemberName:    name,
+		Title:         req.Title,
 		Integration:   req.Integration,
 		IntegrationID: req.IntegrationID,
 		Description:   req.Description,
 		Rank:          req.Rank,
 	}
 
-	err := h.repo.UpdateChoice(ctx, code, member, name, &updatedChoice)
+	err := h.repo.UpdateChoice(ctx, code, name, title, &updatedChoice)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
 			Error: err.Error(),
@@ -126,13 +126,13 @@ func (h *ChoiceHandler) UpdateMemberChoice(c *gin.Context) {
 
 func (h *ChoiceHandler) RemoveMemberChoice(c *gin.Context) {
 	code := strings.ToLower(c.Param("code"))
-	member := c.Param("member")
 	name := c.Param("name")
+	title := c.Param("title")
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), REQUEST_TIMEOUT_SECONDS*time.Second)
 	defer cancel()
 
-	err := h.repo.RemoveChoice(ctx, code, member, name)
+	err := h.repo.RemoveChoice(ctx, code, name, title)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
 			Error: err.Error(),
@@ -147,12 +147,12 @@ func (h *ChoiceHandler) RemoveMemberChoice(c *gin.Context) {
 
 func (h *ChoiceHandler) ClearMemberChoices(c *gin.Context) {
 	code := strings.ToLower(c.Param("code"))
-	member := c.Param("member")
+	name := c.Param("name")
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), REQUEST_TIMEOUT_SECONDS*time.Second)
 	defer cancel()
 
-	err := h.repo.RemoveAllChoicesByMember(ctx, code, member)
+	err := h.repo.RemoveAllChoicesByMemberName(ctx, code, name)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
 			Error: err.Error(),

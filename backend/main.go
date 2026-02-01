@@ -82,11 +82,11 @@ func main() {
 		sessionRoutes.PUT("/:code/member/:name", sessionHandler.UpdateMember) // TODO: convert name from path param to query param
 		sessionRoutes.GET("/:code/ws", wsHandler.HandleWebSocket)
 
-		sessionRoutes.POST("/:code/member/:member/choice", choiceHandler.AddMemberChoice)
-		sessionRoutes.GET("/:code/member/:member/choice", choiceHandler.GetMemberChoices)
-		sessionRoutes.PUT("/:code/member/:member/choice/:name", choiceHandler.UpdateMemberChoice)
-		sessionRoutes.DELETE("/:code/member/:member/choice/:name", choiceHandler.RemoveMemberChoice)
-		sessionRoutes.DELETE("/:code/member/:member/choice", choiceHandler.ClearMemberChoices)
+		sessionRoutes.POST("/:code/member/:name/choice", choiceHandler.AddMemberChoice)
+		sessionRoutes.GET("/:code/member/:name/choice", choiceHandler.GetMemberChoices)
+		sessionRoutes.PUT("/:code/member/:name/choice/:title", choiceHandler.UpdateMemberChoice)
+		sessionRoutes.DELETE("/:code/member/:name/choice/:title", choiceHandler.RemoveMemberChoice)
+		sessionRoutes.DELETE("/:code/member/:name/choice", choiceHandler.ClearMemberChoices)
 	}
 
 	integrationHandler := handlers.NewIntegrationHandler()

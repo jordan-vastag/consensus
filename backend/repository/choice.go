@@ -30,6 +30,32 @@ func (repo *ChoiceRepository) CreateChoice(ctx context.Context, choice *models.C
 	return err
 }
 
+func (repo *ChoiceRepository) CreateAggregateChoices(ctx context.Context, choices []models.Choice) error {
+	if len(choices) == 0 {
+		return nil
+	}
+
+	now := time.Now()
+	docs := make([]any, len(choices))
+
+	for i, choice := range choices {
+		docs[i] = bson.D{
+			{"code", choice.Code},
+			{"memberName", nil},
+			{"title", choice.Title},
+			{"integration", choice.Integration},
+			{"integrationID", choice.IntegrationID},
+			{"description", choice.Description},
+			{"rank", choice.Rank},
+			{"createdAt", now},
+			{"updatedAt", now},
+		}
+	}
+
+	_, err := repo.choice.InsertMany(ctx, docs)
+	return err
+}
+
 func (repo *ChoiceRepository) FindChoicesByCode(ctx context.Context, code string) ([]models.Choice, error) {
 	filter := bson.D{
 		{"code", bson.D{{"$eq", code}}},
@@ -52,7 +78,7 @@ func (repo *ChoiceRepository) FindChoicesByCode(ctx context.Context, code string
 func (repo *ChoiceRepository) FindAggregateChoices(ctx context.Context, code string) ([]models.Choice, error) {
 	filter := bson.D{
 		{"code", bson.D{{"$eq", code}}},
-		{"member", bson.D{{"$eq", nil}}},
+		{"memberName", bson.D{{"$eq", nil}}},
 	}
 	cursor, err := repo.choice.Find(ctx, filter)
 	if err != nil {
@@ -69,10 +95,10 @@ func (repo *ChoiceRepository) FindAggregateChoices(ctx context.Context, code str
 	return choices, nil
 }
 
-func (repo *ChoiceRepository) FindChoicesByMember(ctx context.Context, code string, member string) ([]models.Choice, error) {
+func (repo *ChoiceRepository) FindChoicesByMemberName(ctx context.Context, code string, memberName string) ([]models.Choice, error) {
 	filter := bson.D{
 		{"code", bson.D{{"$eq", code}}},
-		{"member", bson.D{{"$eq", member}}},
+		{"memberName", bson.D{{"$eq", memberName}}},
 	}
 	cursor, err := repo.choice.Find(ctx, filter)
 	if err != nil {
@@ -89,17 +115,17 @@ func (repo *ChoiceRepository) FindChoicesByMember(ctx context.Context, code stri
 	return choices, nil
 }
 
-func (repo *ChoiceRepository) UpdateChoice(ctx context.Context, code string, member string, name string, newChoice *models.Choice) error {
+func (repo *ChoiceRepository) UpdateChoice(ctx context.Context, code string, memberName string, title string, newChoice *models.Choice) error {
 	filter := bson.D{
 		{"code", bson.D{{"$eq", code}}},
-		{"member", bson.D{{"$eq", member}}},
-		{"name", bson.D{{"$eq", name}}},
+		{"memberName", bson.D{{"$eq", memberName}}},
+		{"title", bson.D{{"$eq", title}}},
 	}
 
 	now := time.Now()
 	update := bson.D{
 		{"$set", bson.D{
-			{"name", newChoice.Name},
+			{"title", newChoice.Title},
 			{"integration", newChoice.Integration},
 			{"integrationID", newChoice.IntegrationID},
 			{"description", newChoice.Description},
@@ -118,27 +144,27 @@ func (repo *ChoiceRepository) UpdateChoice(ctx context.Context, code string, mem
 	return nil
 }
 
-func (repo *ChoiceRepository) RemoveAllChoicesByMember(ctx context.Context, code string, member string) error {
+func (repo *ChoiceRepository) RemoveAllChoicesByMemberName(ctx context.Context, code string, memberName string) error {
 	filter := bson.D{
 		{"code", bson.D{{"$eq", code}}},
-		{"member", bson.D{{"$eq", member}}},
+		{"memberName", bson.D{{"$eq", memberName}}},
 	}
 
 	result, err := repo.choice.DeleteMany(ctx, filter)
 	if err != nil {
 		return err
 	} else if result.DeletedCount == 0 {
-		return fmt.Errorf("failed to find choices for member")
+		return fmt.Errorf("failed to find choices for member name")
 	}
 
 	return nil
 }
 
-func (repo *ChoiceRepository) RemoveChoice(ctx context.Context, code string, member string, name string) error {
+func (repo *ChoiceRepository) RemoveChoice(ctx context.Context, code string, memberName string, title string) error {
 	filter := bson.D{
 		{"code", bson.D{{"$eq", code}}},
-		{"member", bson.D{{"$eq", member}}},
-		{"name", bson.D{{"$eq", name}}},
+		{"memberName", bson.D{{"$eq", memberName}}},
+		{"title", bson.D{{"$eq", title}}},
 	}
 
 	result, err := repo.choice.DeleteOne(ctx, filter)
