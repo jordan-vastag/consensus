@@ -58,6 +58,10 @@ export default function SessionPage() {
     title: "",
     ready: {},
     phase: "lobby",
+    config: {
+      min_choices: 0,
+      max_choices: 10,
+    },
   });
 
   // WebSocket handlers
@@ -219,6 +223,7 @@ export default function SessionPage() {
             title: response.Session.title,
             ready,
             phase: "lobby",
+            config: response.Session.config,
           });
           setIsLoading(false);
         })
@@ -269,6 +274,7 @@ export default function SessionPage() {
           title: response.Session.title,
           ready,
           phase: "lobby",
+          config: response.Session.config,
         });
         setNeedsToJoin(false);
         setIsLoading(false);
@@ -405,7 +411,18 @@ export default function SessionPage() {
             <CardDescription>Create a List</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="mb-4">Add your suggestions for <b>{sessionState.title}</b></p>
+            <p className="mb-2">Add your suggestions for <b>{sessionState.title}</b></p>
+            <p className="text-sm text-muted-foreground mb-4">
+              {sessionState.config.min_choices > 0 && sessionState.config.max_choices > 0 && (
+                <>Required: {sessionState.config.min_choices} - {sessionState.config.max_choices} options</>
+              )}
+              {sessionState.config.min_choices > 0 && !sessionState.config.max_choices && (
+                <>Minimum: {sessionState.config.min_choices} options</>
+              )}
+              {!sessionState.config.min_choices && sessionState.config.max_choices > 0 && (
+                <>Maximum: {sessionState.config.max_choices} options</>
+              )}
+            </p>
 
             {/* Add choice input */}
             <div className="flex gap-2 mb-4">
@@ -451,6 +468,19 @@ export default function SessionPage() {
               </p>
             )}
 
+            {/* Validation warning */}
+            {choices.length > 0 && (
+              choices.length < sessionState.config.min_choices ? (
+                <p className="text-amber-600 text-sm mb-4">
+                  You need at least {sessionState.config.min_choices} option{sessionState.config.min_choices !== 1 ? "s" : ""} to submit. Add {sessionState.config.min_choices - choices.length} more.
+                </p>
+              ) : choices.length > sessionState.config.max_choices ? (
+                <p className="text-amber-600 text-sm mb-4">
+                  You have too many options. Remove {choices.length - sessionState.config.max_choices} to submit.
+                </p>
+              ) : null
+            )}
+
             {/* Action buttons */}
             {choices.length > 0 && (
               <div className="flex justify-between items-center">
@@ -485,7 +515,14 @@ export default function SessionPage() {
 
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button size="lg" className="w-40">
+                    <Button
+                      size="lg"
+                      className="w-40"
+                      disabled={
+                        choices.length < sessionState.config.min_choices ||
+                        choices.length > sessionState.config.max_choices
+                      }
+                    >
                       Submit
                     </Button>
                   </AlertDialogTrigger>
