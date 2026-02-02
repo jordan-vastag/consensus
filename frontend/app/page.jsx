@@ -56,6 +56,16 @@ export default function Home() {
     grace_period_seconds: 3,
     allow_empty_voters: false,
   });
+  const [touched, setTouched] = useState({
+    name: false,
+    title: false,
+  });
+
+  const nameHasInvalidChars = /[/\\]/.test(sessionConfig.name);
+  const isFormValid =
+    sessionConfig.name.trim() !== "" &&
+    !nameHasInvalidChars &&
+    sessionConfig.title.trim() !== "";
 
   const showRejoinPrompt = savedSessionData !== null;
 
@@ -148,11 +158,11 @@ export default function Home() {
               </CardHeader>
               <CardContent className="flex flex-col space-x-2 gap-4">
                 <div>
-                  <div>Session Title</div>
+                  <div>Session Title <span className="text-destructive">*</span></div>
                   <Input
                     id="session-title"
                     placeholder="Title"
-                    className="w-100% mt-2 mb-4"
+                    className={`w-100% mt-2 ${touched.title && !sessionConfig.title.trim() ? "border-destructive" : ""}`}
                     value={sessionConfig.title}
                     onChange={(e) => {
                       setSessionConfig({
@@ -160,14 +170,18 @@ export default function Home() {
                         title: e.target.value,
                       });
                     }}
+                    onBlur={() => setTouched({ ...touched, title: true })}
                   />
+                  {touched.title && !sessionConfig.title.trim() && (
+                    <p className="text-destructive text-sm mt-1">Title is required</p>
+                  )}
                 </div>
                 <div>
-                  <div>Your Name</div>
+                  <div>Your Name <span className="text-destructive">*</span></div>
                   <Input
                     id="host-name"
                     placeholder="Name"
-                    className="w-100% mt-2 mb-4"
+                    className={`w-100% mt-2 ${(touched.name && !sessionConfig.name.trim()) || nameHasInvalidChars ? "border-destructive" : ""}`}
                     value={sessionConfig.name}
                     onChange={(e) => {
                       setSessionConfig({
@@ -175,7 +189,14 @@ export default function Home() {
                         name: e.target.value,
                       });
                     }}
+                    onBlur={() => setTouched({ ...touched, name: true })}
                   />
+                  {touched.name && !sessionConfig.name.trim() && (
+                    <p className="text-destructive text-sm mt-1">Name is required</p>
+                  )}
+                  {nameHasInvalidChars && (
+                    <p className="text-destructive text-sm mt-1">Name cannot contain / or \</p>
+                  )}
                 </div>
                 <div>Options</div>
                 <div className="flex items-center space-x-2">
@@ -265,7 +286,11 @@ export default function Home() {
                     >
                       Cancel
                     </Button>
-                    <Button className="w-30" onClick={handleHostSessionClick}>
+                    <Button
+                      className="w-30"
+                      onClick={handleHostSessionClick}
+                      disabled={!isFormValid}
+                    >
                       Host Session
                     </Button>
                   </div>

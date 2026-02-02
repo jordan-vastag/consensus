@@ -45,6 +45,7 @@ export default function SessionPage() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [joinName, setJoinName] = useState("");
+  const [nameValidation, setNameValidation] = useState("idle"); // idle, checking, valid, invalid
   const [needsToJoin, setNeedsToJoin] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
   const [choices, setChoices] = useState([]);
@@ -251,6 +252,27 @@ export default function SessionPage() {
     }
   }, [sessionCode]);
 
+  const validateName = async () => {
+    if (!joinName.trim()) {
+      setNameValidation("idle");
+      return;
+    }
+
+    setNameValidation("checking");
+    try {
+      const response = await getSession(sessionCode);
+      const members = response.Session.members.map((m) => m.name);
+      if (members.includes(joinName.trim())) {
+        setNameValidation("invalid");
+      } else {
+        setNameValidation("valid");
+      }
+    } catch (e) {
+      console.error("Failed to validate name:", e);
+      setNameValidation("idle");
+    }
+  };
+
   const handleJoinSessionClick = () => {
     setIsLoading(true);
     joinSession(sessionCode, joinName)
@@ -324,16 +346,43 @@ export default function SessionPage() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-col gap-4">
-              <Input
-                placeholder="Your name"
-                value={joinName}
-                onChange={(e) => setJoinName(e.target.value)}
-              />
+              <div>
+                <Input
+                  placeholder="Your name"
+                  value={joinName}
+                  onChange={(e) => {
+                    setJoinName(e.target.value);
+                    setNameValidation("idle");
+                  }}
+                  onBlur={validateName}
+                />
+                {nameValidation === "checking" && (
+                  <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
+                    <Spinner className="size-4" />
+                    <span>Checking availability...</span>
+                  </div>
+                )}
+                {nameValidation === "valid" && (
+                  <div className="flex items-center gap-2 mt-2 text-sm text-green-600">
+                    <span>✅</span>
+                    <span>Name is available</span>
+                  </div>
+                )}
+                {nameValidation === "invalid" && (
+                  <div className="flex items-center gap-2 mt-2 text-sm text-destructive">
+                    <span>❌</span>
+                    <span>Name is already taken</span>
+                  </div>
+                )}
+              </div>
               <div className="flex items-center justify-evenly">
                 <Button variant="outline" onClick={() => router.push("/")}>
                   Cancel
                 </Button>
-                <Button onClick={handleJoinSessionClick} disabled={!joinName}>
+                <Button
+                  onClick={handleJoinSessionClick}
+                  disabled={!joinName || nameValidation !== "valid"}
+                >
                   Join
                 </Button>
               </div>
