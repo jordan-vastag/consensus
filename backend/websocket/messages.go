@@ -3,14 +3,16 @@ package websocket
 // Message types
 const (
 	// Outbound (server → client)
-	TypeMemberJoined   = "member_joined"
-	TypeMemberLeft     = "member_left"
-	TypeMemberReady    = "member_ready"
-	TypePhaseChanged   = "phase_changed"
-	TypeConnectedUsers = "connected_users"
+	TypeMemberJoined    = "member_joined"
+	TypeMemberLeft      = "member_left"
+	TypeMemberReady     = "member_ready"
+	TypePhaseChanged    = "phase_changed"
+	TypeConnectedUsers  = "connected_users"
+	TypeMemberSubmitted = "member_submitted"
 
 	// Inbound (client → server)
-	TypeSetReady = "set_ready"
+	TypeSetReady      = "set_ready"
+	TypeSubmitChoices = "submit_choices"
 )
 
 // Outbound messages
@@ -41,6 +43,11 @@ type PhaseChangedMsg struct {
 type ConnectedUsersMsg struct {
 	Type    string   `json:"type"`
 	Members []string `json:"members"` // list of currently connected member names
+}
+
+type MemberSubmittedMsg struct {
+	Type       string `json:"type"`
+	MemberName string `json:"memberName"`
 }
 
 // Inbound messages

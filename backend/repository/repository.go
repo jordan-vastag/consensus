@@ -94,6 +94,21 @@ func (repo *SessionRepository) CloseSession(ctx context.Context, code string) (e
 	return nil
 }
 
+func (repo *SessionRepository) SaveFinalizedChoices(ctx context.Context, code string, choices []models.Choice) error {
+	filter := bson.D{{"code", bson.D{{"$eq", code}}}}
+	update := bson.D{{"$set", bson.D{
+		{"finalizedChoices", choices},
+		{"updatedAt", time.Now()},
+	}}}
+	result, err := repo.session.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return err
+	} else if result.MatchedCount == 0 {
+		return fmt.Errorf("session not found")
+	}
+	return nil
+}
+
 func (repo *SessionRepository) DeleteSession(ctx context.Context, code string) (err error) {
 	filter := bson.D{{"code", bson.D{{"$eq", code}}}}
 	_, err = repo.session.DeleteOne(ctx, filter)

@@ -49,6 +49,7 @@ export default function SessionPage() {
   const [needsToJoin, setNeedsToJoin] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
   const [choices, setChoices] = useState([]);
+  const [allChoices, setAllChoices] = useState([]);
   const [newChoiceTitle, setNewChoiceTitle] = useState("");
   const [sessionState, setSessionState] = useState({
     active: false,
@@ -58,6 +59,7 @@ export default function SessionPage() {
     myName: "",
     title: "",
     ready: {},
+    submitted: {},
     phase: "lobby",
     config: {
       min_choices: 0,
@@ -121,7 +123,14 @@ export default function SessionPage() {
     });
   }, []);
 
-  const { isConnected, connect, setReady } = useSessionWebSocket(
+  const handleMemberSubmitted = useCallback((memberName) => {
+    setSessionState((prev) => ({
+      ...prev,
+      submitted: { ...prev.submitted, [memberName]: true },
+    }));
+  }, []);
+
+  const { isConnected, connect, setReady, submitChoices } = useSessionWebSocket(
     sessionState.code,
     sessionState.myName,
     {
@@ -130,6 +139,7 @@ export default function SessionPage() {
       onMemberReady: handleMemberReady,
       onPhaseChanged: handlePhaseChanged,
       onConnectedUsers: handleConnectedUsers,
+      onMemberSubmitted: handleMemberSubmitted,
     }
   );
 
@@ -153,6 +163,19 @@ export default function SessionPage() {
         });
     }
   }, [sessionState.phase, sessionState.code, sessionState.myName]);
+
+  // Fetch finalized choices when entering results phase
+  useEffect(() => {
+    if (sessionState.phase !== "results" || !sessionState.code) return;
+    getSession(sessionState.code)
+      .then((response) => setAllChoices(response.Session.finalizedChoices || []))
+      .catch((e) => console.error("Failed to fetch choices:", e));
+  }, [sessionState.phase, sessionState.code]);
+
+  // Compute submission status from WebSocket-tracked submitted state
+  const membersWhoHaventSubmitted = sessionState.members.filter(
+    (m) => !sessionState.submitted[m]
+  );
 
   const handleAddChoice = async () => {
     if (!newChoiceTitle.trim()) return;
@@ -223,6 +246,7 @@ export default function SessionPage() {
             myName: savedSession.name,
             title: response.Session.title,
             ready,
+            submitted: {},
             phase: "lobby",
             config: response.Session.config,
           });
@@ -295,6 +319,7 @@ export default function SessionPage() {
           myName: joinName,
           title: response.Session.title,
           ready,
+          submitted: {},
           phase: "lobby",
           config: response.Session.config,
         });
@@ -585,7 +610,14 @@ export default function SessionPage() {
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
                       <AlertDialogAction
-                        onClick={() => setSessionState((prev) => ({ ...prev, phase: "submitted" }))}
+                        onClick={() => {
+                          submitChoices();
+                          setSessionState((prev) => ({
+                            ...prev,
+                            phase: "submitted",
+                            submitted: { ...prev.submitted, [prev.myName]: true },
+                          }));
+                        }}
                       >
                         Submit
                       </AlertDialogAction>
@@ -602,10 +634,56 @@ export default function SessionPage() {
         <Card className="w-full max-w-sm m-10">
           <CardHeader>
             <CardTitle className="text-2xl">{sessionState.title}</CardTitle>
+            <CardDescription>List Submitted</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2 text-muted-foreground mb-2">
+              <Spinner className="size-4" />
+              <span>
+                Waiting for {membersWhoHaventSubmitted.length} member
+                {membersWhoHaventSubmitted.length !== 1 ? "s" : ""} to submit their list
+              </span>
+            </div>
+            <ul className="mt-2 space-y-1 text-sm">
+              {sessionState.members.map((m) => (
+                <li key={m} className="flex items-center gap-2">
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      sessionState.submitted[m] ? "bg-green-500" : "bg-gray-300"
+                    }`}
+                  />
+                  <span className="text-muted-foreground">
+                    {m}
+                    {m === sessionState.myName && " (you)"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
+      {sessionState.active && sessionState.phase === "results" && (
+        <Card className="w-full max-w-sm m-10">
+          <CardHeader>
+            <CardTitle className="text-2xl">{sessionState.title}</CardTitle>
             <CardDescription>Vote!</CardDescription>
           </CardHeader>
           <CardContent>
-            <p>Time to vote</p>
+            <p className="mb-4 text-green-600 font-medium">Everyone has submitted. Time to vote!</p>
+            <ul className="space-y-2">
+              {allChoices.map((choice, index) => (
+                <li
+                  key={`${choice.memberName}-${choice.title}-${index}`}
+                  className="flex items-center justify-between py-2 px-4 rounded-md bg-muted"
+                >
+                  <span>{choice.title}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {choice.memberName}
+                  </span>
+                </li>
+              ))}
+            </ul>
           </CardContent>
         </Card>
       )}

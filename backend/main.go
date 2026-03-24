@@ -1,12 +1,16 @@
 package main
 
 import (
+	"context"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
+	"time"
 
 	"consensus/database"
 	"consensus/handlers"
+	"consensus/models"
 	"consensus/repository"
 	"consensus/websocket"
 
@@ -63,6 +67,33 @@ func main() {
 	// Initialize WebSocket hub
 	hub := websocket.NewHub()
 	go hub.Run()
+
+	hub.OnAllSubmitted = func(sessionCode string) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		session, err := sessionRepo.FindSessionByCode(ctx, sessionCode)
+		if err != nil {
+			log.Printf("finalize: failed to fetch session %s: %v", sessionCode, err)
+			return
+		}
+
+		choices := make([]models.Choice, len(session.Choices))
+		copy(choices, session.Choices)
+		rand.Shuffle(len(choices), func(i, j int) { choices[i], choices[j] = choices[j], choices[i] })
+
+		if err := sessionRepo.SaveFinalizedChoices(ctx, sessionCode, choices); err != nil {
+			log.Printf("finalize: failed to save for session %s: %v", sessionCode, err)
+			return
+		}
+
+		hub.BroadcastToSession(sessionCode, websocket.PhaseChangedMsg{
+			Type:  websocket.TypePhaseChanged,
+			Phase: "results",
+			Ready: hub.GetReadyState(sessionCode),
+		})
+	}
+
 	sessionHandler := handlers.NewSessionHandler(sessionRepo, hub)
 	wsHandler := websocket.NewHandler(hub, sessionRepo)
 	sessionRoutes := router.Group("/api/session")

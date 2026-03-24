@@ -52,7 +52,7 @@ export function useSessionWebSocket(sessionCode, memberName, handlers = {}) {
       ws.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
-          const { onMemberJoined, onMemberLeft, onMemberReady, onPhaseChanged, onConnectedUsers } = handlersRef.current;
+          const { onMemberJoined, onMemberLeft, onMemberReady, onPhaseChanged, onConnectedUsers, onMemberSubmitted } = handlersRef.current;
 
           switch (message.type) {
             case "member_joined":
@@ -69,6 +69,9 @@ export function useSessionWebSocket(sessionCode, memberName, handlers = {}) {
               break;
             case "connected_users":
               onConnectedUsers?.(message.members);
+              break;
+            case "member_submitted":
+              onMemberSubmitted?.(message.memberName);
               break;
             default:
               console.log("Unknown message type:", message.type);
@@ -108,6 +111,12 @@ export function useSessionWebSocket(sessionCode, memberName, handlers = {}) {
     }
   }, []);
 
+  const submitChoices = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: "submit_choices" }));
+    }
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -121,5 +130,6 @@ export function useSessionWebSocket(sessionCode, memberName, handlers = {}) {
     connect,
     disconnect,
     setReady,
+    submitChoices,
   };
 }

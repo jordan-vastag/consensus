@@ -69,6 +69,8 @@ func (c *Client) handleMessage(message []byte) {
 	switch msg.Type {
 	case TypeSetReady:
 		c.hub.SetReady(c.sessionCode, c.memberName, msg.Ready)
+	case TypeSubmitChoices:
+		c.hub.SubmitChoices(c.sessionCode, c.memberName)
 	default:
 		log.Printf("unknown message type from %s: %s", c.memberName, msg.Type)
 	}
