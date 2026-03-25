@@ -55,6 +55,15 @@ import { toast } from "sonner";
 
 const SESSION_KEY = "consensus_session_data";
 
+function UserBadge({ name }) {
+  return (
+    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+      <span>{name}</span>
+      <Image src="/user.svg" alt="User" width={18} height={18} className="opacity-60" />
+    </div>
+  );
+}
+
 function SortableChoiceItem({ id, title, rank, totalChoices, onRankChange }) {
   const {
     attributes,
@@ -623,6 +632,8 @@ export default function SessionPage() {
               Join Code: {sessionState.code.toUpperCase()}
             </CardDescription>
             <CardAction>
+              <div className="flex flex-col items-end gap-2">
+              <UserBadge name={sessionState.myName} />
               <div className="flex gap-2">
                 <Button
                   variant="outline"
@@ -646,6 +657,7 @@ export default function SessionPage() {
                 >
                   {sessionState.ready[sessionState.myName] ? "Not Ready" : "Ready"}
                 </Button>
+              </div>
               </div>
             </CardAction>
           </CardHeader>
@@ -676,6 +688,7 @@ export default function SessionPage() {
           <CardHeader>
             <CardTitle className="text-2xl">{sessionState.title}</CardTitle>
             <CardDescription>Create a List</CardDescription>
+            <CardAction><UserBadge name={sessionState.myName} /></CardAction>
           </CardHeader>
           <CardContent>
             <p className="mb-2">Add your suggestions for <b>{sessionState.title}</b></p>
@@ -840,6 +853,7 @@ export default function SessionPage() {
           <CardHeader>
             <CardTitle className="text-2xl">{sessionState.title}</CardTitle>
             <CardDescription>List Submitted</CardDescription>
+            <CardAction><UserBadge name={sessionState.myName} /></CardAction>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2 text-muted-foreground mb-2">
@@ -876,6 +890,7 @@ export default function SessionPage() {
             <CardDescription>
               {allChoices.length === 0 ? "Loading..." : choicesRemaining > 0 ? `Vote · ${choicesRemaining} choice${choicesRemaining !== 1 ? "s" : ""} remaining` : "Vote · All voted!"}
             </CardDescription>
+            <CardAction><UserBadge name={sessionState.myName} /></CardAction>
           </CardHeader>
           <CardContent>
             {allChoices.length === 0 && (
@@ -965,6 +980,7 @@ export default function SessionPage() {
           <CardHeader>
             <CardTitle className="text-2xl">{sessionState.title}</CardTitle>
             <CardDescription>Review your votes</CardDescription>
+            <CardAction><UserBadge name={sessionState.myName} /></CardAction>
           </CardHeader>
           <CardContent>
             <ul className="space-y-2 mb-6">
@@ -1037,6 +1053,7 @@ export default function SessionPage() {
             <CardDescription>
               {allChoices.length === 0 ? "Loading..." : "Rank your choices — drag or enter a number"}
             </CardDescription>
+            <CardAction><UserBadge name={sessionState.myName} /></CardAction>
           </CardHeader>
           <CardContent>
             {allChoices.length === 0 && (
@@ -1165,6 +1182,7 @@ export default function SessionPage() {
           <CardHeader>
             <CardTitle className="text-2xl">{sessionState.title}</CardTitle>
             <CardDescription>Votes Submitted</CardDescription>
+            <CardAction><UserBadge name={sessionState.myName} /></CardAction>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2 text-muted-foreground mb-2">
@@ -1198,6 +1216,7 @@ export default function SessionPage() {
           <CardHeader>
             <CardTitle className="text-2xl">{sessionState.title}</CardTitle>
             <CardDescription>Results</CardDescription>
+            <CardAction><UserBadge name={sessionState.myName} /></CardAction>
           </CardHeader>
           <CardContent>
             <ol className="space-y-2">
