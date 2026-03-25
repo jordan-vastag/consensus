@@ -56,6 +56,8 @@ export default function SessionPage() {
   const [currentChoiceIndex, setCurrentChoiceIndex] = useState(0);
   const [inVoteReview, setInVoteReview] = useState(false);
   const [editingChoiceTitle, setEditingChoiceTitle] = useState(null);
+  const [editingListChoiceTitle, setEditingListChoiceTitle] = useState(null);
+  const [editingListChoiceValue, setEditingListChoiceValue] = useState("");
   const [sessionState, setSessionState] = useState({
     active: false,
     code: "",
@@ -271,6 +273,19 @@ export default function SessionPage() {
     } catch (e) {
       console.error("Failed to clear choices:", e);
       toast.error("Failed to clear choices");
+    }
+  };
+
+  const handleEditChoice = async (oldTitle, newTitle) => {
+    const trimmed = newTitle.trim();
+    if (!trimmed || trimmed === oldTitle) return;
+    try {
+      await removeChoice(sessionState.code, sessionState.myName, oldTitle);
+      await addChoice(sessionState.code, sessionState.myName, trimmed);
+      setChoices((prev) => prev.map((c) => c.title === oldTitle ? { ...c, title: trimmed } : c));
+    } catch (e) {
+      console.error("Failed to edit choice:", e);
+      toast.error("Failed to edit choice");
     }
   };
 
@@ -507,7 +522,7 @@ export default function SessionPage() {
                     });
                   }}
                 >
-                  <Image src="/share.png" alt="Share" width={20} height={20} />
+                  <Image src="/share.svg" alt="Share" width={20} height={20} />
                 </Button>
                 <Button
                   variant={
@@ -589,13 +604,25 @@ export default function SessionPage() {
                     className="flex items-center justify-between py-2 px-4 rounded-md bg-muted group"
                   >
                     <span>{choice.title}</span>
-                    <button
-                      onClick={() => handleRemoveChoice(choice.title)}
-                      className="cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive p-1"
-                      aria-label={`Remove ${choice.title}`}
-                    >
-                      <Image src="/trash.png" alt="Remove" width={20} height={20} className="opacity-70 hover:opacity-100 transition-opacity" />
-                    </button>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => {
+                          setEditingListChoiceTitle(choice.title);
+                          setEditingListChoiceValue(choice.title);
+                        }}
+                        className="cursor-pointer text-muted-foreground hover:text-foreground p-1"
+                        aria-label={`Edit ${choice.title}`}
+                      >
+                        <Image src="/edit.svg" alt="Edit" width={20} height={20} className="opacity-70 hover:opacity-100 transition-opacity" />
+                      </button>
+                      <button
+                        onClick={() => handleRemoveChoice(choice.title)}
+                        className="cursor-pointer text-muted-foreground hover:text-destructive p-1"
+                        aria-label={`Remove ${choice.title}`}
+                      >
+                        <Image src="/trash-xmark.svg" alt="Remove" width={20} height={20} className="opacity-70 hover:opacity-100 transition-opacity" />
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -770,7 +797,7 @@ export default function SessionPage() {
                     }
                   }}
                 >
-                  No
+                  <Image src="/thumbs-down.svg" alt="No" width={24} height={24} />
                 </Button>
                 <Button
                   size="lg"
@@ -784,17 +811,17 @@ export default function SessionPage() {
                     }
                   }}
                 >
-                  Yes
+                  <Image src="/thumbs-up.svg" alt="Yes" width={24} height={24} />
                 </Button>
               </div>
               <div className="flex items-center gap-6">
                 <Button
                   variant="ghost"
                   size="icon"
-                  disabled={currentChoiceIndex === 0}
+                  className={currentChoiceIndex === 0 ? "invisible" : ""}
                   onClick={() => setCurrentChoiceIndex((i) => i - 1)}
                 >
-                  ‹
+                  <Image src="/arrow-small-left.svg" alt="Previous" width={20} height={20} />
                 </Button>
                 <span className="text-sm text-muted-foreground">
                   {currentChoiceIndex + 1} / {allChoices.length}
@@ -802,17 +829,17 @@ export default function SessionPage() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => {
-                    if (currentChoiceIndex === allChoices.length - 1) {
-                      setInVoteReview(true);
-                    } else {
-                      setCurrentChoiceIndex((i) => i + 1);
-                    }
-                  }}
+                  className={currentChoiceIndex === allChoices.length - 1 ? "invisible" : ""}
+                  onClick={() => setCurrentChoiceIndex((i) => i + 1)}
                 >
-                  ›
+                  <Image src="/arrow-small-right.svg" alt="Next" width={20} height={20} />
                 </Button>
               </div>
+              {currentChoiceIndex === allChoices.length - 1 && (
+                <Button className="w-full" onClick={() => setInVoteReview(true)}>
+                  Next
+                </Button>
+              )}
             </div>
             )}
           </CardContent>
@@ -909,6 +936,39 @@ export default function SessionPage() {
               >
                 Yes
               </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+
+      {editingListChoiceTitle !== null && (
+        <AlertDialog open onOpenChange={(open) => { if (!open) setEditingListChoiceTitle(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Edit choice</AlertDialogTitle>
+            </AlertDialogHeader>
+            <Input
+              value={editingListChoiceValue}
+              onChange={(e) => setEditingListChoiceValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleEditChoice(editingListChoiceTitle, editingListChoiceValue);
+                  setEditingListChoiceTitle(null);
+                }
+              }}
+              autoFocus
+            />
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setEditingListChoiceTitle(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={!editingListChoiceValue.trim()}
+                onClick={() => {
+                  handleEditChoice(editingListChoiceTitle, editingListChoiceValue);
+                  setEditingListChoiceTitle(null);
+                }}
+              >
+                Save
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
