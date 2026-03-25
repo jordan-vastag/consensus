@@ -868,7 +868,11 @@ export default function SessionPage() {
                       ? "bg-red-100 text-red-700"
                       : "bg-gray-100 text-gray-500"
                   }`}>
-                    {localVotes[choice.title] === 1 ? "Yes" : localVotes[choice.title] === 0 ? "No" : "—"}
+                    {localVotes[choice.title] === 1
+                      ? <Image src="/thumbs-up.svg" alt="Yes" width={16} height={16} />
+                      : localVotes[choice.title] === 0
+                      ? <Image src="/thumbs-down.svg" alt="No" width={16} height={16} />
+                      : "—"}
                   </span>
                 </li>
               ))}
@@ -925,7 +929,7 @@ export default function SessionPage() {
                   setEditingChoiceTitle(null);
                 }}
               >
-                No
+                <Image src="/thumbs-down.svg" alt="No" width={20} height={20} />
               </Button>
               <Button
                 className="bg-green-600 hover:bg-green-700"
@@ -934,7 +938,7 @@ export default function SessionPage() {
                   setEditingChoiceTitle(null);
                 }}
               >
-                Yes
+                <Image src="/thumbs-up.svg" alt="Yes" width={20} height={20} />
               </Button>
             </AlertDialogFooter>
           </AlertDialogContent>
