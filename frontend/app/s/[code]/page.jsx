@@ -32,12 +32,9 @@ import {
 } from "@/ui/card";
 import { Input } from "@/ui/input";
 import { Spinner } from "@/ui/spinner";
-import Image from "next/image";
-import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useId, useState } from "react";
 import {
-  DndContext,
   closestCenter,
+  DndContext,
   KeyboardSensor,
   PointerSensor,
   useSensor,
@@ -51,6 +48,9 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import Image from "next/image";
+import { useParams, useRouter } from "next/navigation";
+import { useCallback, useEffect, useId, useState } from "react";
 import { toast } from "sonner";
 
 const SESSION_KEY = "consensus_session_data";
@@ -966,7 +966,7 @@ export default function SessionPage() {
               </div>
               {currentChoiceIndex === allChoices.length - 1 && (
                 <Button className="w-full" onClick={() => setInVoteReview(true)}>
-                  Next
+                  Review Votes
                 </Button>
               )}
             </div>
