@@ -109,7 +109,6 @@ func (h *SessionHandler) CreateSession(c *gin.Context) {
 }
 
 func (h *SessionHandler) JoinSession(c *gin.Context) {
-	// TODO: ensure session phase is 'lobby'
 	var req models.JoinSessionRequest
 	code := strings.ToLower(c.Param("code"))
 
@@ -133,6 +132,13 @@ func (h *SessionHandler) JoinSession(c *gin.Context) {
 	if !session.ClosedAt.IsZero() {
 		c.JSON(http.StatusGone, models.ErrorResponse{
 			Error: "Session is closed",
+		})
+		return
+	}
+
+	if session.Phase != "" && session.Phase != "lobby" {
+		c.JSON(http.StatusForbidden, models.ErrorResponse{
+			Error: "Session is no longer accepting new members",
 		})
 		return
 	}

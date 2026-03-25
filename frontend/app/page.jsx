@@ -1,6 +1,6 @@
 "use client";
 
-import { hostSession } from "@/app/api";
+import { getSession, hostSession } from "@/app/api";
 import { Button } from "@/ui/button";
 import {
   Card,
@@ -116,10 +116,28 @@ export default function Home() {
       });
   };
 
-  const handleJoinSessionClick = () => {
-    if (joinCode.length === 6) {
-      router.push(`/s/${joinCode.toLowerCase()}`);
+  const [joinError, setJoinError] = useState("");
+
+  const handleJoinSessionClick = async () => {
+    if (joinCode.length !== 6) return;
+    setJoinError("");
+    setIsLoading(true);
+    try {
+      const response = await getSession(joinCode.toLowerCase());
+      const phase = response.Session.phase || "lobby";
+      const closedAt = new Date(response.Session.closed_at);
+      if (closedAt.getFullYear() > 1) {
+        setJoinError("This session is closed.");
+      } else if (phase !== "lobby") {
+        setJoinError("This session is no longer accepting new members.");
+      } else {
+        router.push(`/s/${joinCode.toLowerCase()}`);
+        return;
+      }
+    } catch {
+      setJoinError("Session not found.");
     }
+    setIsLoading(false);
   };
 
   const handleRejoinClick = () => {
@@ -333,22 +351,28 @@ export default function Home() {
                   </InputOTP>
                   <div className="text-center text-sm">Join code</div>
                 </div>
-                <div className="flex items-center justify-evenly mt-6">
-                  <Button
-                    variant="outline"
-                    className="w-20"
-                    onClick={handleCancelClick}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    className="w-30"
-                    onClick={handleJoinSessionClick}
-                    disabled={joinCode.length !== 6}
-                  >
-                    Join Session
-                  </Button>
-                </div>
+                {joinError && (
+                  <p className="text-destructive text-sm text-center mt-2">{joinError}</p>
+                )}
+                {!isLoading && (
+                  <div className="flex items-center justify-evenly mt-6">
+                    <Button
+                      variant="outline"
+                      className="w-20"
+                      onClick={handleCancelClick}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      className="w-30"
+                      onClick={handleJoinSessionClick}
+                      disabled={joinCode.length !== 6}
+                    >
+                      Join Session
+                    </Button>
+                  </div>
+                )}
+                {isLoading && <Spinner className="self-center size-8 mt-4" />}
               </CardContent>
             </Card>
           )}
