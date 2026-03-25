@@ -42,7 +42,7 @@ type AddChoiceRequest struct {
 
 type VoteValue struct {
 	ChoiceTitle string `json:"choiceTitle" binding:"required"`
-	Value       int    `json:"value" binding:"min=0,max=1"`
+	Value       int    `json:"value" binding:"min=0"`
 }
 
 type SubmitVotesRequest struct {

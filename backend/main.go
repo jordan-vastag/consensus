@@ -111,12 +111,23 @@ func main() {
 			return
 		}
 
-		// Build yes-vote count map from session.Choices (where AddVote stores them)
-		voteCounts := make(map[string]int)
-		for _, c := range session.Choices {
-			for _, v := range c.Votes {
-				if v.Value == 1 {
-					voteCounts[c.Title]++
+		scores := make(map[string]int)
+		numChoices := len(session.FinalizedChoices)
+
+		if session.Config.VotingMode == "ranked_choice" {
+			// Borda count: rank 1 → numChoices points, rank N → 1 point
+			for _, c := range session.Choices {
+				for _, v := range c.Votes {
+					scores[c.Title] += numChoices - v.Value + 1
+				}
+			}
+		} else {
+			// yes_no: count yes votes (value == 1)
+			for _, c := range session.Choices {
+				for _, v := range c.Votes {
+					if v.Value == 1 {
+						scores[c.Title]++
+					}
 				}
 			}
 		}
@@ -124,7 +135,7 @@ func main() {
 		choices := make([]models.Choice, len(session.FinalizedChoices))
 		copy(choices, session.FinalizedChoices)
 		for i := range choices {
-			choices[i].Rank = voteCounts[choices[i].Title]
+			choices[i].Rank = scores[choices[i].Title]
 		}
 		sort.Slice(choices, func(i, j int) bool {
 			if choices[i].Rank != choices[j].Rank {

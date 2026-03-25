@@ -34,10 +34,81 @@ import { Input } from "@/ui/input";
 import { Spinner } from "@/ui/spinner";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { toast } from "sonner";
 
 const SESSION_KEY = "consensus_session_data";
+
+function SortableChoiceItem({ id, title, rank, totalChoices, onRankChange }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : undefined,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-2 py-2 px-3 rounded-md bg-muted"
+    >
+      <button
+        {...attributes}
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing touch-none p-1 text-muted-foreground hover:text-foreground"
+        aria-label="Drag to reorder"
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <circle cx="5" cy="3" r="1.5" />
+          <circle cx="11" cy="3" r="1.5" />
+          <circle cx="5" cy="8" r="1.5" />
+          <circle cx="11" cy="8" r="1.5" />
+          <circle cx="5" cy="13" r="1.5" />
+          <circle cx="11" cy="13" r="1.5" />
+        </svg>
+      </button>
+      <span className="flex-1 truncate">{title}</span>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={rank}
+        onChange={(e) => {
+          const val = parseInt(e.target.value, 10);
+          if (!isNaN(val) && val >= 1 && val <= totalChoices) {
+            onRankChange(val);
+          }
+        }}
+        className="w-12 text-center rounded border border-input bg-background px-1 py-0.5 text-sm [appearance:textfield]"
+      />
+    </li>
+  );
+}
 
 export default function SessionPage() {
   const router = useRouter();
@@ -55,6 +126,7 @@ export default function SessionPage() {
   const [localVotes, setLocalVotes] = useState({});
   const [currentChoiceIndex, setCurrentChoiceIndex] = useState(0);
   const [inVoteReview, setInVoteReview] = useState(false);
+  const [rankedOrder, setRankedOrder] = useState([]); // array of choice titles in ranked order
   const [editingChoiceTitle, setEditingChoiceTitle] = useState(null);
   const [editingListChoiceTitle, setEditingListChoiceTitle] = useState(null);
   const [editingListChoiceValue, setEditingListChoiceValue] = useState("");
@@ -74,6 +146,33 @@ export default function SessionPage() {
       max_choices: 10,
     },
   });
+
+  const dndId = useId();
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const isRankedChoice = sessionState.config?.voting_mode === "ranked_choice";
+
+  const handleDragEnd = useCallback((event) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setRankedOrder((prev) => {
+      const oldIndex = prev.indexOf(active.id);
+      const newIndex = prev.indexOf(over.id);
+      return arrayMove(prev, oldIndex, newIndex);
+    });
+  }, []);
+
+  const handleRankInputChange = useCallback((title, newRank) => {
+    setRankedOrder((prev) => {
+      const oldIndex = prev.indexOf(title);
+      const newIndex = newRank - 1; // 1-based to 0-based
+      if (oldIndex === -1 || oldIndex === newIndex) return prev;
+      return arrayMove(prev, oldIndex, newIndex);
+    });
+  }, []);
 
   // WebSocket handlers
   const handleMemberJoined = useCallback((memberName) => {
@@ -119,6 +218,9 @@ export default function SessionPage() {
       setLocalVotes({});
       setCurrentChoiceIndex(0);
       setInVoteReview(false);
+      if (choices?.length > 0) {
+        setRankedOrder(choices.map((c) => c.title));
+      }
     } else if (choices?.length > 0) {
       setAllChoices(choices);
     }
@@ -194,7 +296,10 @@ export default function SessionPage() {
     getSession(sessionState.code)
       .then((response) => {
         const fc = response.Session.finalizedChoices;
-        if (fc?.length > 0) setAllChoices(fc);
+        if (fc?.length > 0) {
+          setAllChoices(fc);
+          setRankedOrder(fc.map((c) => c.title));
+        }
       })
       .catch((e) => console.error("Failed to fetch choices:", e));
   }, [sessionState.phase, sessionState.code]);
@@ -224,10 +329,18 @@ export default function SessionPage() {
   ).length;
 
   const handleSubmitVotes = async () => {
-    const votes = allChoices.map((c) => ({
-      choiceTitle: c.title,
-      value: localVotes[c.title] ?? 0,
-    }));
+    let votes;
+    if (isRankedChoice) {
+      votes = rankedOrder.map((title, index) => ({
+        choiceTitle: title,
+        value: index + 1, // 1-based rank
+      }));
+    } else {
+      votes = allChoices.map((c) => ({
+        choiceTitle: c.title,
+        value: localVotes[c.title] ?? 0,
+      }));
+    }
     try {
       await submitVotes(sessionState.code, sessionState.myName, votes);
       submitVotesWS();
@@ -755,7 +868,8 @@ export default function SessionPage() {
         </Card>
       )}
 
-      {sessionState.active && sessionState.phase === "results" && !inVoteReview && (
+      {/* Yes/No voting: carousel + review */}
+      {sessionState.active && sessionState.phase === "results" && !isRankedChoice && !inVoteReview && (
         <Card className="w-full max-w-sm m-10">
           <CardHeader>
             <CardTitle className="text-2xl">{sessionState.title}</CardTitle>
@@ -846,7 +960,7 @@ export default function SessionPage() {
         </Card>
       )}
 
-      {sessionState.active && sessionState.phase === "results" && inVoteReview && (
+      {sessionState.active && sessionState.phase === "results" && !isRankedChoice && inVoteReview && (
         <Card className="w-full max-w-sm m-10">
           <CardHeader>
             <CardTitle className="text-2xl">{sessionState.title}</CardTitle>
@@ -911,6 +1025,71 @@ export default function SessionPage() {
                 </AlertDialogContent>
               </AlertDialog>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Ranked choice voting: sortable list */}
+      {sessionState.active && sessionState.phase === "results" && isRankedChoice && (
+        <Card className="w-full max-w-sm m-10">
+          <CardHeader>
+            <CardTitle className="text-2xl">{sessionState.title}</CardTitle>
+            <CardDescription>
+              {allChoices.length === 0 ? "Loading..." : "Rank your choices — drag or enter a number"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {allChoices.length === 0 && (
+              <div className="flex justify-center py-8">
+                <Spinner className="size-6" />
+              </div>
+            )}
+            {rankedOrder.length > 0 && (
+              <>
+                <DndContext
+                  id={dndId}
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext items={rankedOrder} strategy={verticalListSortingStrategy}>
+                    <ul className="space-y-2 mb-6">
+                      {rankedOrder.map((title, index) => (
+                        <SortableChoiceItem
+                          key={title}
+                          id={title}
+                          title={title}
+                          rank={index + 1}
+                          totalChoices={rankedOrder.length}
+                          onRankChange={(newRank) => handleRankInputChange(title, newRank)}
+                        />
+                      ))}
+                    </ul>
+                  </SortableContext>
+                </DndContext>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button size="lg" className="w-full">
+                      Submit Ranking
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Submit your ranking?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        You won&apos;t be able to change your ranking after submitting.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleSubmitVotes}>
+                        Submit
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </>
+            )}
           </CardContent>
         </Card>
       )}
@@ -1032,7 +1211,7 @@ export default function SessionPage() {
                     <span>{choice.title}</span>
                   </div>
                   <span className="text-sm font-medium text-green-700">
-                    {choice.rank} yes
+                    {choice.rank} {isRankedChoice ? "pts" : "yes"}
                   </span>
                 </li>
               ))}
