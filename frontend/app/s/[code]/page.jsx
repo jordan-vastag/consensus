@@ -436,7 +436,24 @@ export default function SessionPage() {
 
           const host = response.Session.members.find((m) => m.host).name;
           const ready = {};
-          members.forEach((m) => (ready[m] = false));
+          const submitted = {};
+          const voted = {};
+          response.Session.members.forEach((m) => {
+            ready[m.name] = false;
+            if (m.submitted) submitted[m.name] = true;
+            if (m.voted) voted[m.name] = true;
+          });
+          const phase = response.Session.phase || "lobby";
+
+          // If this member already submitted/voted, show the waiting screen
+          const mySubmitted = submitted[savedSession.name];
+          const myVoted = voted[savedSession.name];
+          let effectivePhase = phase;
+          if (phase === "voting" && mySubmitted) {
+            effectivePhase = "submitted";
+          } else if (phase === "results" && myVoted) {
+            effectivePhase = "submitted_votes";
+          }
 
           setSessionState({
             active: true,
@@ -446,9 +463,9 @@ export default function SessionPage() {
             myName: savedSession.name,
             title: response.Session.title,
             ready,
-            submitted: {},
-            voted: {},
-            phase: "lobby",
+            submitted,
+            voted,
+            phase: effectivePhase,
             config: response.Session.config,
           });
           setIsLoading(false);

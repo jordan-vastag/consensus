@@ -69,6 +69,22 @@ func main() {
 	hub := websocket.NewHub()
 	go hub.Run()
 
+	hub.OnAllReady = func(sessionCode string) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := sessionRepo.UpdateSessionPhase(ctx, sessionCode, "voting"); err != nil {
+			log.Printf("phase update: failed to set voting for session %s: %v", sessionCode, err)
+		}
+	}
+
+	hub.OnMemberSubmitted = func(sessionCode, memberName string) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := sessionRepo.SetMemberSubmitted(ctx, sessionCode, memberName, true); err != nil {
+			log.Printf("member submitted: failed for %s in session %s: %v", memberName, sessionCode, err)
+		}
+	}
+
 	hub.OnAllSubmitted = func(sessionCode string) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -88,6 +104,10 @@ func main() {
 			return
 		}
 
+		if err := sessionRepo.UpdateSessionPhase(ctx, sessionCode, "results"); err != nil {
+			log.Printf("phase update: failed to set results for session %s: %v", sessionCode, err)
+		}
+
 		hub.BroadcastToSession(sessionCode, struct {
 			Type    string          `json:"type"`
 			Phase   string          `json:"phase"`
@@ -99,6 +119,14 @@ func main() {
 			Ready:   hub.GetReadyState(sessionCode),
 			Choices: choices,
 		})
+	}
+
+	hub.OnMemberVoted = func(sessionCode, memberName string) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := sessionRepo.SetMemberVoted(ctx, sessionCode, memberName, true); err != nil {
+			log.Printf("member voted: failed for %s in session %s: %v", memberName, sessionCode, err)
+		}
 	}
 
 	hub.OnAllVoted = func(sessionCode string) {
@@ -147,6 +175,10 @@ func main() {
 		if err := sessionRepo.SaveRankedChoices(ctx, sessionCode, choices); err != nil {
 			log.Printf("ranking: failed to save for session %s: %v", sessionCode, err)
 			return
+		}
+
+		if err := sessionRepo.UpdateSessionPhase(ctx, sessionCode, "final"); err != nil {
+			log.Printf("phase update: failed to set final for session %s: %v", sessionCode, err)
 		}
 
 		hub.BroadcastToSession(sessionCode, struct {

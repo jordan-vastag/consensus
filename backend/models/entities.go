@@ -11,6 +11,7 @@ type Session struct {
 	FinalizedChoices []Choice      `json:"finalizedChoices" bson:"finalizedChoices"`
 	RankedChoices    []Choice      `json:"rankedChoices" bson:"rankedChoices"`
 	Title     string        `json:"title" bson:"title"`
+	Phase     string        `json:"phase" bson:"phase"`
 	Config    SessionConfig `json:"config" bson:"config"`
 	CreatedAt time.Time     `json:"createdAt" bson:"createdAt"`
 	UpdatedAt time.Time     `json:"updatedAt" bson:"updatedAt"`
@@ -32,6 +33,8 @@ type Member struct {
 	Code      string    `json:"code" bson:"code"`
 	Name      string    `json:"name" bson:"name"`
 	Host      bool      `json:"host" bson:"host"`
+	Submitted bool      `json:"submitted" bson:"submitted"`
+	Voted     bool      `json:"voted" bson:"voted"`
 	CreatedAt time.Time `json:"createdAt" bson:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt" bson:"updatedAt"`
 }

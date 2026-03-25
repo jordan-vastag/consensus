@@ -15,8 +15,11 @@ type Hub struct {
 	register       chan *Client
 	unregister     chan *Client
 	mu             sync.RWMutex
-	OnAllSubmitted func(sessionCode string)
-	OnAllVoted     func(sessionCode string)
+	OnAllReady        func(sessionCode string)
+	OnMemberSubmitted func(sessionCode, memberName string)
+	OnAllSubmitted    func(sessionCode string)
+	OnMemberVoted     func(sessionCode, memberName string)
+	OnAllVoted        func(sessionCode string)
 }
 
 func NewHub() *Hub {
@@ -43,10 +46,15 @@ func (h *Hub) Run() {
 			}
 			h.sessions[client.sessionCode][client] = true
 			h.ready[client.sessionCode][client.memberName] = false
-			if _, alreadyTracked := h.submitted[client.sessionCode][client.memberName]; !alreadyTracked {
+			// Restore submitted/voted from DB state carried on the client
+			if client.submitted {
+				h.submitted[client.sessionCode][client.memberName] = true
+			} else if _, alreadyTracked := h.submitted[client.sessionCode][client.memberName]; !alreadyTracked {
 				h.submitted[client.sessionCode][client.memberName] = false
 			}
-			if _, alreadyTracked := h.voted[client.sessionCode][client.memberName]; !alreadyTracked {
+			if client.voted {
+				h.voted[client.sessionCode][client.memberName] = true
+			} else if _, alreadyTracked := h.voted[client.sessionCode][client.memberName]; !alreadyTracked {
 				h.voted[client.sessionCode][client.memberName] = false
 			}
 			h.mu.Unlock()
@@ -120,9 +128,9 @@ func (h *Hub) broadcastToSessionLocked(sessionCode string, msg any) {
 
 func (h *Hub) SetReady(sessionCode, memberName string, ready bool) {
 	h.mu.Lock()
-	defer h.mu.Unlock()
 
 	if _, ok := h.ready[sessionCode]; !ok {
+		h.mu.Unlock()
 		return
 	}
 
@@ -136,12 +144,18 @@ func (h *Hub) SetReady(sessionCode, memberName string, ready bool) {
 	})
 
 	// Check if all members are ready
-	if h.allReadyLocked(sessionCode) {
+	allReady := h.allReadyLocked(sessionCode)
+	if allReady {
 		h.broadcastToSessionLocked(sessionCode, PhaseChangedMsg{
 			Type:  TypePhaseChanged,
 			Phase: "voting",
 			Ready: h.copyReadyMapLocked(sessionCode),
 		})
+	}
+	h.mu.Unlock()
+
+	if allReady && h.OnAllReady != nil {
+		go h.OnAllReady(sessionCode)
 	}
 }
 
@@ -191,6 +205,9 @@ func (h *Hub) SubmitChoices(sessionCode, memberName string) {
 	allDone := h.allSubmittedLocked(sessionCode)
 	h.mu.Unlock()
 
+	if h.OnMemberSubmitted != nil {
+		go h.OnMemberSubmitted(sessionCode, memberName)
+	}
 	if allDone && h.OnAllSubmitted != nil {
 		go h.OnAllSubmitted(sessionCode)
 	}
@@ -228,6 +245,9 @@ func (h *Hub) SubmitVotes(sessionCode, memberName string) {
 	allDone := h.allVotedLocked(sessionCode)
 	h.mu.Unlock()
 
+	if h.OnMemberVoted != nil {
+		go h.OnMemberVoted(sessionCode, memberName)
+	}
 	if allDone && h.OnAllVoted != nil {
 		go h.OnAllVoted(sessionCode)
 	}

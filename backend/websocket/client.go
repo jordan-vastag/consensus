@@ -21,6 +21,8 @@ type Client struct {
 	send        chan []byte
 	sessionCode string
 	memberName  string
+	submitted   bool
+	voted       bool
 }
 
 func NewClient(hub *Hub, conn *websocket.Conn, sessionCode, memberName string) *Client {

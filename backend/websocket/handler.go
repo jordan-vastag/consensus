@@ -59,17 +59,21 @@ func (h *Handler) HandleWebSocket(c *gin.Context) {
 		return
 	}
 
-	// Validate member is in session and get their host status
+	// Validate member is in session and get their status
 	var memberInfo *struct {
-		found bool
-		host  bool
+		found     bool
+		host      bool
+		submitted bool
+		voted     bool
 	}
 	for _, member := range session.Members {
 		if member.Name == memberName {
 			memberInfo = &struct {
-				found bool
-				host  bool
-			}{found: true, host: member.Host}
+				found     bool
+				host      bool
+				submitted bool
+				voted     bool
+			}{found: true, host: member.Host, submitted: member.Submitted, voted: member.Voted}
 			break
 		}
 	}
@@ -87,6 +91,8 @@ func (h *Handler) HandleWebSocket(c *gin.Context) {
 	}
 
 	client := NewClient(h.hub, conn, sessionCode, memberName)
+	client.submitted = memberInfo.submitted
+	client.voted = memberInfo.voted
 	h.hub.Register(client)
 
 	// Send currently connected users to the newly connected client

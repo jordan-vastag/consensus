@@ -90,6 +90,7 @@ func (h *SessionHandler) CreateSession(c *gin.Context) {
 		Code:    sessionCode,
 		Members: []models.Member{host},
 		Title:   req.Title,
+		Phase:   "lobby",
 		Config:  req.Config,
 	}
 

@@ -94,6 +94,21 @@ func (repo *SessionRepository) CloseSession(ctx context.Context, code string) (e
 	return nil
 }
 
+func (repo *SessionRepository) UpdateSessionPhase(ctx context.Context, code string, phase string) error {
+	filter := bson.D{{"code", bson.D{{"$eq", code}}}}
+	update := bson.D{{"$set", bson.D{
+		{"phase", phase},
+		{"updatedAt", time.Now()},
+	}}}
+	result, err := repo.session.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return err
+	} else if result.MatchedCount == 0 {
+		return fmt.Errorf("session not found")
+	}
+	return nil
+}
+
 func (repo *SessionRepository) SaveFinalizedChoices(ctx context.Context, code string, choices []models.Choice) error {
 	filter := bson.D{{"code", bson.D{{"$eq", code}}}}
 	update := bson.D{{"$set", bson.D{
@@ -226,6 +241,46 @@ func (repo *SessionRepository) UpdateMember(ctx context.Context, code string, na
 		return fmt.Errorf("failed to find member")
 	}
 
+	return nil
+}
+
+func (repo *SessionRepository) SetMemberSubmitted(ctx context.Context, code string, name string, submitted bool) error {
+	filter := bson.D{
+		{"code", bson.D{{"$eq", code}}},
+		{"members.name", bson.D{{"$eq", name}}},
+	}
+	now := time.Now()
+	update := bson.D{{"$set", bson.D{
+		{"members.$.submitted", submitted},
+		{"members.$.updatedAt", now},
+		{"updatedAt", now},
+	}}}
+	result, err := repo.session.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return err
+	} else if result.MatchedCount == 0 {
+		return fmt.Errorf("failed to find member")
+	}
+	return nil
+}
+
+func (repo *SessionRepository) SetMemberVoted(ctx context.Context, code string, name string, voted bool) error {
+	filter := bson.D{
+		{"code", bson.D{{"$eq", code}}},
+		{"members.name", bson.D{{"$eq", name}}},
+	}
+	now := time.Now()
+	update := bson.D{{"$set", bson.D{
+		{"members.$.voted", voted},
+		{"members.$.updatedAt", now},
+		{"updatedAt", now},
+	}}}
+	result, err := repo.session.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return err
+	} else if result.MatchedCount == 0 {
+		return fmt.Errorf("failed to find member")
+	}
 	return nil
 }
 
