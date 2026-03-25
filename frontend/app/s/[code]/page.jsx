@@ -860,7 +860,10 @@ export default function SessionPage() {
                   className="flex items-center justify-between py-2 px-4 rounded-md bg-muted cursor-pointer hover:bg-muted/80"
                   onClick={() => setEditingChoiceTitle(choice.title)}
                 >
-                  <span>{choice.title}</span>
+                  <span>
+                    {choice.title}
+                    {localVotes[choice.title] === undefined && <span className="text-red-500 ml-1">*</span>}
+                  </span>
                   <span className={`text-sm font-medium px-2 py-0.5 rounded-full ${
                     localVotes[choice.title] === 1
                       ? "bg-green-100 text-green-700"
