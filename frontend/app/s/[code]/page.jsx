@@ -647,6 +647,16 @@ export default function SessionPage() {
             <CardTitle className="text-2xl">{sessionState.title}</CardTitle>
             <CardDescription className="text-lg">
               Join Code: {sessionState.code.toUpperCase()}
+              <button
+                className="inline-block ml-1 align-middle cursor-pointer opacity-60 hover:opacity-100 transition-opacity"
+                onClick={() => {
+                  navigator.clipboard.writeText(sessionState.code.toUpperCase());
+                  toast("Join code copied to clipboard!");
+                }}
+                aria-label="Copy join code"
+              >
+                <Image src="/copy.svg" alt="Copy" width={16} height={16} />
+              </button>
             </CardDescription>
             <CardAction>
               <div className="flex flex-col items-end gap-2">
