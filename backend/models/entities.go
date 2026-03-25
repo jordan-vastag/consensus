@@ -9,6 +9,7 @@ type Session struct {
 	Members   []Member      `json:"members" bson:"members"`
 	Choices          []Choice      `json:"choices" bson:"choices"`
 	FinalizedChoices []Choice      `json:"finalizedChoices" bson:"finalizedChoices"`
+	RankedChoices    []Choice      `json:"rankedChoices" bson:"rankedChoices"`
 	Title     string        `json:"title" bson:"title"`
 	Config    SessionConfig `json:"config" bson:"config"`
 	CreatedAt time.Time     `json:"createdAt" bson:"createdAt"`

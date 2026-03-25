@@ -23,7 +23,7 @@ import { Spinner } from "@/ui/spinner";
 import { REGEXP_ONLY_DIGITS_AND_CHARS } from "input-otp";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const SESSION_KEY = "consensus_session_data";
 
@@ -38,7 +38,11 @@ function getSavedSession() {
 export default function Home() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  const [savedSessionData, setSavedSessionData] = useState(getSavedSession);
+  const [savedSessionData, setSavedSessionData] = useState(null);
+
+  useEffect(() => {
+    setSavedSessionData(getSavedSession());
+  }, []);
   const [hostClicked, setHostClicked] = useState(false);
   const [joinClicked, setJoinClicked] = useState(false);
   const [joinCode, setJoinCode] = useState("");

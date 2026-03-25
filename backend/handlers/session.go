@@ -590,6 +590,30 @@ func (h *SessionHandler) RemoveMemberChoice(c *gin.Context) {
 	})
 }
 
+func (h *SessionHandler) SubmitMemberVotes(c *gin.Context) {
+	code := strings.ToLower(c.Param("code"))
+	name := c.Param("name")
+	var req models.SubmitVotesRequest
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), REQUEST_TIMEOUT_SECONDS*time.Second)
+	defer cancel()
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	for _, v := range req.Votes {
+		vote := models.Vote{MemberName: name, Value: v.Value}
+		if err := h.repo.AddVote(ctx, code, v.ChoiceTitle, vote); err != nil {
+			c.JSON(http.StatusInternalServerError, models.ErrorResponse{Error: err.Error()})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"msg": "Votes submitted"})
+}
+
 func (h *SessionHandler) ClearMemberChoices(c *gin.Context) {
 	code := strings.ToLower(c.Param("code"))
 	name := c.Param("name")

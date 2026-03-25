@@ -52,7 +52,7 @@ export function useSessionWebSocket(sessionCode, memberName, handlers = {}) {
       ws.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
-          const { onMemberJoined, onMemberLeft, onMemberReady, onPhaseChanged, onConnectedUsers, onMemberSubmitted } = handlersRef.current;
+          const { onMemberJoined, onMemberLeft, onMemberReady, onPhaseChanged, onConnectedUsers, onMemberSubmitted, onMemberVoted } = handlersRef.current;
 
           switch (message.type) {
             case "member_joined":
@@ -65,13 +65,16 @@ export function useSessionWebSocket(sessionCode, memberName, handlers = {}) {
               onMemberReady?.(message.memberName, message.ready);
               break;
             case "phase_changed":
-              onPhaseChanged?.(message.phase, message.ready);
+              onPhaseChanged?.(message.phase, message.ready, message.choices);
               break;
             case "connected_users":
               onConnectedUsers?.(message.members);
               break;
             case "member_submitted":
               onMemberSubmitted?.(message.memberName);
+              break;
+            case "member_voted":
+              onMemberVoted?.(message.memberName);
               break;
             default:
               console.log("Unknown message type:", message.type);
@@ -117,6 +120,12 @@ export function useSessionWebSocket(sessionCode, memberName, handlers = {}) {
     }
   }, []);
 
+  const submitVotes = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: "submit_votes" }));
+    }
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -131,5 +140,6 @@ export function useSessionWebSocket(sessionCode, memberName, handlers = {}) {
     disconnect,
     setReady,
     submitChoices,
+    submitVotes,
   };
 }

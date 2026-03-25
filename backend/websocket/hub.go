@@ -8,13 +8,15 @@ import (
 )
 
 type Hub struct {
-	sessions      map[string]map[*Client]bool // sessionCode → clients
-	ready         map[string]map[string]bool  // sessionCode → memberName → ready
-	submitted     map[string]map[string]bool  // sessionCode → memberName → submitted
-	register      chan *Client
-	unregister    chan *Client
-	mu            sync.RWMutex
+	sessions       map[string]map[*Client]bool // sessionCode → clients
+	ready          map[string]map[string]bool  // sessionCode → memberName → ready
+	submitted      map[string]map[string]bool  // sessionCode → memberName → submitted
+	voted          map[string]map[string]bool  // sessionCode → memberName → voted
+	register       chan *Client
+	unregister     chan *Client
+	mu             sync.RWMutex
 	OnAllSubmitted func(sessionCode string)
+	OnAllVoted     func(sessionCode string)
 }
 
 func NewHub() *Hub {
@@ -22,6 +24,7 @@ func NewHub() *Hub {
 		sessions:   make(map[string]map[*Client]bool),
 		ready:      make(map[string]map[string]bool),
 		submitted:  make(map[string]map[string]bool),
+		voted:      make(map[string]map[string]bool),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 	}
@@ -36,11 +39,15 @@ func (h *Hub) Run() {
 				h.sessions[client.sessionCode] = make(map[*Client]bool)
 				h.ready[client.sessionCode] = make(map[string]bool)
 				h.submitted[client.sessionCode] = make(map[string]bool)
+				h.voted[client.sessionCode] = make(map[string]bool)
 			}
 			h.sessions[client.sessionCode][client] = true
 			h.ready[client.sessionCode][client.memberName] = false
 			if _, alreadyTracked := h.submitted[client.sessionCode][client.memberName]; !alreadyTracked {
 				h.submitted[client.sessionCode][client.memberName] = false
+			}
+			if _, alreadyTracked := h.voted[client.sessionCode][client.memberName]; !alreadyTracked {
+				h.voted[client.sessionCode][client.memberName] = false
 			}
 			h.mu.Unlock()
 			log.Printf("client registered: %s in session %s", client.memberName, client.sessionCode)
@@ -58,15 +65,17 @@ func (h *Hub) Run() {
 						MemberName: client.memberName,
 					})
 
-					// Clean up ready and submitted state
+					// Clean up ready, submitted, and voted state
 					delete(h.ready[client.sessionCode], client.memberName)
 					delete(h.submitted[client.sessionCode], client.memberName)
+					delete(h.voted[client.sessionCode], client.memberName)
 
 					// Clean up empty session
 					if len(clients) == 0 {
 						delete(h.sessions, client.sessionCode)
 						delete(h.ready, client.sessionCode)
 						delete(h.submitted, client.sessionCode)
+						delete(h.voted, client.sessionCode)
 					}
 				}
 			}
@@ -195,6 +204,43 @@ func (h *Hub) allSubmittedLocked(sessionCode string) bool {
 	}
 	for _, s := range submittedMap {
 		if !s {
+			return false
+		}
+	}
+	return true
+}
+
+func (h *Hub) SubmitVotes(sessionCode, memberName string) {
+	h.mu.Lock()
+
+	if _, ok := h.voted[sessionCode]; !ok {
+		h.mu.Unlock()
+		return
+	}
+
+	h.voted[sessionCode][memberName] = true
+
+	h.broadcastToSessionLocked(sessionCode, MemberVotedMsg{
+		Type:       TypeMemberVoted,
+		MemberName: memberName,
+	})
+
+	allDone := h.allVotedLocked(sessionCode)
+	h.mu.Unlock()
+
+	if allDone && h.OnAllVoted != nil {
+		go h.OnAllVoted(sessionCode)
+	}
+}
+
+// Must hold lock
+func (h *Hub) allVotedLocked(sessionCode string) bool {
+	votedMap, ok := h.voted[sessionCode]
+	if !ok || len(votedMap) == 0 {
+		return false
+	}
+	for _, v := range votedMap {
+		if !v {
 			return false
 		}
 	}

@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"sort"
 	"time"
 
 	"consensus/database"
@@ -87,10 +88,66 @@ func main() {
 			return
 		}
 
-		hub.BroadcastToSession(sessionCode, websocket.PhaseChangedMsg{
-			Type:  websocket.TypePhaseChanged,
-			Phase: "results",
-			Ready: hub.GetReadyState(sessionCode),
+		hub.BroadcastToSession(sessionCode, struct {
+			Type    string          `json:"type"`
+			Phase   string          `json:"phase"`
+			Ready   map[string]bool `json:"ready"`
+			Choices []models.Choice `json:"choices"`
+		}{
+			Type:    websocket.TypePhaseChanged,
+			Phase:   "results",
+			Ready:   hub.GetReadyState(sessionCode),
+			Choices: choices,
+		})
+	}
+
+	hub.OnAllVoted = func(sessionCode string) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		session, err := sessionRepo.FindSessionByCode(ctx, sessionCode)
+		if err != nil {
+			log.Printf("ranking: failed to fetch session %s: %v", sessionCode, err)
+			return
+		}
+
+		// Build yes-vote count map from session.Choices (where AddVote stores them)
+		voteCounts := make(map[string]int)
+		for _, c := range session.Choices {
+			for _, v := range c.Votes {
+				if v.Value == 1 {
+					voteCounts[c.Title]++
+				}
+			}
+		}
+
+		choices := make([]models.Choice, len(session.FinalizedChoices))
+		copy(choices, session.FinalizedChoices)
+		for i := range choices {
+			choices[i].Rank = voteCounts[choices[i].Title]
+		}
+		sort.Slice(choices, func(i, j int) bool {
+			if choices[i].Rank != choices[j].Rank {
+				return choices[i].Rank > choices[j].Rank
+			}
+			return choices[i].Title < choices[j].Title
+		})
+
+		if err := sessionRepo.SaveRankedChoices(ctx, sessionCode, choices); err != nil {
+			log.Printf("ranking: failed to save for session %s: %v", sessionCode, err)
+			return
+		}
+
+		hub.BroadcastToSession(sessionCode, struct {
+			Type    string          `json:"type"`
+			Phase   string          `json:"phase"`
+			Ready   map[string]bool `json:"ready"`
+			Choices []models.Choice `json:"choices"`
+		}{
+			Type:    websocket.TypePhaseChanged,
+			Phase:   "final",
+			Ready:   hub.GetReadyState(sessionCode),
+			Choices: choices,
 		})
 	}
 
@@ -116,6 +173,7 @@ func main() {
 		sessionRoutes.PUT("/:code/member/:name/choice/:title", sessionHandler.UpdateMemberChoice)
 		sessionRoutes.DELETE("/:code/member/:name/choice/:title", sessionHandler.RemoveMemberChoice)
 		sessionRoutes.DELETE("/:code/member/:name/choice", sessionHandler.ClearMemberChoices)
+		sessionRoutes.POST("/:code/member/:name/votes", sessionHandler.SubmitMemberVotes)
 	}
 
 	integrationHandler := handlers.NewIntegrationHandler()

@@ -9,10 +9,12 @@ const (
 	TypePhaseChanged    = "phase_changed"
 	TypeConnectedUsers  = "connected_users"
 	TypeMemberSubmitted = "member_submitted"
+	TypeMemberVoted     = "member_voted"
 
 	// Inbound (client → server)
 	TypeSetReady      = "set_ready"
 	TypeSubmitChoices = "submit_choices"
+	TypeSubmitVotes   = "submit_votes"
 )
 
 // Outbound messages
@@ -46,6 +48,11 @@ type ConnectedUsersMsg struct {
 }
 
 type MemberSubmittedMsg struct {
+	Type       string `json:"type"`
+	MemberName string `json:"memberName"`
+}
+
+type MemberVotedMsg struct {
 	Type       string `json:"type"`
 	MemberName string `json:"memberName"`
 }

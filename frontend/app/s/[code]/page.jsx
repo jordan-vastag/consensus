@@ -7,6 +7,7 @@ import {
   getSession,
   joinSession,
   removeChoice,
+  submitVotes,
 } from "@/app/api";
 import { useSessionWebSocket } from "@/hooks/useSessionWebSocket";
 import {
@@ -51,6 +52,10 @@ export default function SessionPage() {
   const [choices, setChoices] = useState([]);
   const [allChoices, setAllChoices] = useState([]);
   const [newChoiceTitle, setNewChoiceTitle] = useState("");
+  const [localVotes, setLocalVotes] = useState({});
+  const [currentChoiceIndex, setCurrentChoiceIndex] = useState(0);
+  const [inVoteReview, setInVoteReview] = useState(false);
+  const [editingChoiceTitle, setEditingChoiceTitle] = useState(null);
   const [sessionState, setSessionState] = useState({
     active: false,
     code: "",
@@ -60,6 +65,7 @@ export default function SessionPage() {
     title: "",
     ready: {},
     submitted: {},
+    voted: {},
     phase: "lobby",
     config: {
       min_choices: 0,
@@ -100,12 +106,20 @@ export default function SessionPage() {
     }));
   }, []);
 
-  const handlePhaseChanged = useCallback((phase, readyMap) => {
+  const handlePhaseChanged = useCallback((phase, readyMap, choices) => {
     setSessionState((prev) => ({
       ...prev,
       phase,
       ready: readyMap,
     }));
+    if (phase === "results") {
+      setAllChoices(choices?.length > 0 ? choices : []);
+      setLocalVotes({});
+      setCurrentChoiceIndex(0);
+      setInVoteReview(false);
+    } else if (choices?.length > 0) {
+      setAllChoices(choices);
+    }
   }, []);
 
   const handleConnectedUsers = useCallback((connectedMembers) => {
@@ -130,7 +144,14 @@ export default function SessionPage() {
     }));
   }, []);
 
-  const { isConnected, connect, setReady, submitChoices } = useSessionWebSocket(
+  const handleMemberVoted = useCallback((memberName) => {
+    setSessionState((prev) => ({
+      ...prev,
+      voted: { ...prev.voted, [memberName]: true },
+    }));
+  }, []);
+
+  const { isConnected, connect, setReady, submitChoices, submitVotes: submitVotesWS } = useSessionWebSocket(
     sessionState.code,
     sessionState.myName,
     {
@@ -140,6 +161,7 @@ export default function SessionPage() {
       onPhaseChanged: handlePhaseChanged,
       onConnectedUsers: handleConnectedUsers,
       onMemberSubmitted: handleMemberSubmitted,
+      onMemberVoted: handleMemberVoted,
     }
   );
 
@@ -164,18 +186,59 @@ export default function SessionPage() {
     }
   }, [sessionState.phase, sessionState.code, sessionState.myName]);
 
-  // Fetch finalized choices when entering results phase
+  // Fetch finalized choices when entering results phase (fallback for reconnect)
   useEffect(() => {
     if (sessionState.phase !== "results" || !sessionState.code) return;
     getSession(sessionState.code)
-      .then((response) => setAllChoices(response.Session.finalizedChoices || []))
+      .then((response) => {
+        const fc = response.Session.finalizedChoices;
+        if (fc?.length > 0) setAllChoices(fc);
+      })
       .catch((e) => console.error("Failed to fetch choices:", e));
+  }, [sessionState.phase, sessionState.code]);
+
+  // Fetch ranked choices when entering final phase
+  useEffect(() => {
+    if (sessionState.phase !== "final" || !sessionState.code) return;
+    getSession(sessionState.code)
+      .then((response) => {
+        const rc = response.Session.rankedChoices;
+        if (rc?.length > 0) setAllChoices(rc);
+      })
+      .catch((e) => console.error("Failed to fetch ranked choices:", e));
   }, [sessionState.phase, sessionState.code]);
 
   // Compute submission status from WebSocket-tracked submitted state
   const membersWhoHaventSubmitted = sessionState.members.filter(
     (m) => !sessionState.submitted[m]
   );
+
+  const membersWhoHaventVoted = sessionState.members.filter(
+    (m) => !sessionState.voted[m]
+  );
+
+  const choicesRemaining = allChoices.filter(
+    (c) => localVotes[c.title] === undefined
+  ).length;
+
+  const handleSubmitVotes = async () => {
+    const votes = allChoices.map((c) => ({
+      choiceTitle: c.title,
+      value: localVotes[c.title] ?? 0,
+    }));
+    try {
+      await submitVotes(sessionState.code, sessionState.myName, votes);
+      submitVotesWS();
+      setSessionState((prev) => ({
+        ...prev,
+        phase: "submitted_votes",
+        voted: { ...prev.voted, [prev.myName]: true },
+      }));
+    } catch (e) {
+      console.error("Failed to submit votes:", e);
+      toast.error("Failed to submit votes");
+    }
+  };
 
   const handleAddChoice = async () => {
     if (!newChoiceTitle.trim()) return;
@@ -247,6 +310,7 @@ export default function SessionPage() {
             title: response.Session.title,
             ready,
             submitted: {},
+            voted: {},
             phase: "lobby",
             config: response.Session.config,
           });
@@ -320,6 +384,7 @@ export default function SessionPage() {
           title: response.Session.title,
           ready,
           submitted: {},
+          voted: {},
           phase: "lobby",
           config: response.Session.config,
         });
@@ -663,27 +728,248 @@ export default function SessionPage() {
         </Card>
       )}
 
-      {sessionState.active && sessionState.phase === "results" && (
+      {sessionState.active && sessionState.phase === "results" && !inVoteReview && (
         <Card className="w-full max-w-sm m-10">
           <CardHeader>
             <CardTitle className="text-2xl">{sessionState.title}</CardTitle>
-            <CardDescription>Vote!</CardDescription>
+            <CardDescription>
+              {allChoices.length === 0 ? "Loading..." : choicesRemaining > 0 ? `Vote · ${choicesRemaining} choice${choicesRemaining !== 1 ? "s" : ""} remaining` : "Vote · All voted!"}
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="mb-4 text-green-600 font-medium">Everyone has submitted. Time to vote!</p>
-            <ul className="space-y-2">
-              {allChoices.map((choice, index) => (
+            {allChoices.length === 0 && (
+              <div className="flex justify-center py-8">
+                <Spinner className="size-6" />
+              </div>
+            )}
+            {allChoices.length > 0 && (
+            <div className="flex flex-col items-center gap-6">
+              <p className="text-xl font-semibold text-center px-4">
+                {allChoices[currentChoiceIndex]?.title}
+              </p>
+              {localVotes[allChoices[currentChoiceIndex]?.title] !== undefined && (
+                <span className={`text-sm font-medium px-3 py-1 rounded-full ${
+                  localVotes[allChoices[currentChoiceIndex]?.title] === 1
+                    ? "bg-green-100 text-green-700"
+                    : "bg-red-100 text-red-700"
+                }`}>
+                  {localVotes[allChoices[currentChoiceIndex]?.title] === 1 ? "Yes" : "No"}
+                </span>
+              )}
+              <div className="flex gap-4">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="w-24 border-red-300 text-red-600 hover:bg-red-50"
+                  onClick={() => {
+                    setLocalVotes((prev) => ({ ...prev, [allChoices[currentChoiceIndex].title]: 0 }));
+                    if (currentChoiceIndex === allChoices.length - 1) {
+                      setInVoteReview(true);
+                    } else {
+                      setCurrentChoiceIndex((i) => i + 1);
+                    }
+                  }}
+                >
+                  No
+                </Button>
+                <Button
+                  size="lg"
+                  className="w-24 bg-green-600 hover:bg-green-700"
+                  onClick={() => {
+                    setLocalVotes((prev) => ({ ...prev, [allChoices[currentChoiceIndex].title]: 1 }));
+                    if (currentChoiceIndex === allChoices.length - 1) {
+                      setInVoteReview(true);
+                    } else {
+                      setCurrentChoiceIndex((i) => i + 1);
+                    }
+                  }}
+                >
+                  Yes
+                </Button>
+              </div>
+              <div className="flex items-center gap-6">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  disabled={currentChoiceIndex === 0}
+                  onClick={() => setCurrentChoiceIndex((i) => i - 1)}
+                >
+                  ‹
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  {currentChoiceIndex + 1} / {allChoices.length}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    if (currentChoiceIndex === allChoices.length - 1) {
+                      setInVoteReview(true);
+                    } else {
+                      setCurrentChoiceIndex((i) => i + 1);
+                    }
+                  }}
+                >
+                  ›
+                </Button>
+              </div>
+            </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {sessionState.active && sessionState.phase === "results" && inVoteReview && (
+        <Card className="w-full max-w-sm m-10">
+          <CardHeader>
+            <CardTitle className="text-2xl">{sessionState.title}</CardTitle>
+            <CardDescription>Review your votes</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2 mb-6">
+              {allChoices.map((choice) => (
                 <li
-                  key={`${choice.memberName}-${choice.title}-${index}`}
-                  className="flex items-center justify-between py-2 px-4 rounded-md bg-muted"
+                  key={choice.title}
+                  className="flex items-center justify-between py-2 px-4 rounded-md bg-muted cursor-pointer hover:bg-muted/80"
+                  onClick={() => setEditingChoiceTitle(choice.title)}
                 >
                   <span>{choice.title}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {choice.memberName}
+                  <span className={`text-sm font-medium px-2 py-0.5 rounded-full ${
+                    localVotes[choice.title] === 1
+                      ? "bg-green-100 text-green-700"
+                      : localVotes[choice.title] === 0
+                      ? "bg-red-100 text-red-700"
+                      : "bg-gray-100 text-gray-500"
+                  }`}>
+                    {localVotes[choice.title] === 1 ? "Yes" : localVotes[choice.title] === 0 ? "No" : "—"}
                   </span>
                 </li>
               ))}
             </ul>
+            {choicesRemaining > 0 && (
+              <p className="text-amber-600 text-sm mb-4">
+                {choicesRemaining} choice{choicesRemaining !== 1 ? "s" : ""} still need{choicesRemaining === 1 ? "s" : ""} a vote.
+              </p>
+            )}
+            <div className="flex justify-between items-center">
+              <Button variant="ghost" onClick={() => setInVoteReview(false)}>
+                ‹ Back
+              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button size="lg" className="w-40" disabled={choicesRemaining > 0}>
+                    Submit Votes
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Submit your votes?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      You won&apos;t be able to change your votes after submitting.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleSubmitVotes}>
+                      Submit
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {editingChoiceTitle !== null && (
+        <AlertDialog open onOpenChange={(open) => { if (!open) setEditingChoiceTitle(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{editingChoiceTitle}</AlertDialogTitle>
+              <AlertDialogDescription>Change your vote for this choice.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setEditingChoiceTitle(null)}>Cancel</AlertDialogCancel>
+              <Button
+                variant="outline"
+                className="border-red-300 text-red-600 hover:bg-red-50"
+                onClick={() => {
+                  setLocalVotes((prev) => ({ ...prev, [editingChoiceTitle]: 0 }));
+                  setEditingChoiceTitle(null);
+                }}
+              >
+                No
+              </Button>
+              <Button
+                className="bg-green-600 hover:bg-green-700"
+                onClick={() => {
+                  setLocalVotes((prev) => ({ ...prev, [editingChoiceTitle]: 1 }));
+                  setEditingChoiceTitle(null);
+                }}
+              >
+                Yes
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+
+      {sessionState.active && sessionState.phase === "submitted_votes" && (
+        <Card className="w-full max-w-sm m-10">
+          <CardHeader>
+            <CardTitle className="text-2xl">{sessionState.title}</CardTitle>
+            <CardDescription>Votes Submitted</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2 text-muted-foreground mb-2">
+              <Spinner className="size-4" />
+              <span>
+                Waiting for {membersWhoHaventVoted.length} member
+                {membersWhoHaventVoted.length !== 1 ? "s" : ""} to submit their votes
+              </span>
+            </div>
+            <ul className="mt-2 space-y-1 text-sm">
+              {sessionState.members.map((m) => (
+                <li key={m} className="flex items-center gap-2">
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      sessionState.voted[m] ? "bg-green-500" : "bg-gray-300"
+                    }`}
+                  />
+                  <span className="text-muted-foreground">
+                    {m}
+                    {m === sessionState.myName && " (you)"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
+      {sessionState.active && sessionState.phase === "final" && (
+        <Card className="w-full max-w-sm m-10">
+          <CardHeader>
+            <CardTitle className="text-2xl">{sessionState.title}</CardTitle>
+            <CardDescription>Results</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ol className="space-y-2">
+              {allChoices.map((choice, index) => (
+                <li
+                  key={`${choice.title}-${index}`}
+                  className="flex items-center justify-between py-2 px-4 rounded-md bg-muted"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-muted-foreground text-sm w-4">{index + 1}.</span>
+                    <span>{choice.title}</span>
+                  </div>
+                  <span className="text-sm font-medium text-green-700">
+                    {choice.rank} yes
+                  </span>
+                </li>
+              ))}
+            </ol>
           </CardContent>
         </Card>
       )}

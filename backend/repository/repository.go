@@ -396,6 +396,21 @@ func (repo *SessionRepository) RemoveAllChoicesByMemberName(ctx context.Context,
 	return nil
 }
 
+func (repo *SessionRepository) SaveRankedChoices(ctx context.Context, code string, choices []models.Choice) error {
+	filter := bson.D{{"code", bson.D{{"$eq", code}}}}
+	update := bson.D{{"$set", bson.D{
+		{"rankedChoices", choices},
+		{"updatedAt", time.Now()},
+	}}}
+	result, err := repo.session.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return err
+	} else if result.MatchedCount == 0 {
+		return fmt.Errorf("session not found")
+	}
+	return nil
+}
+
 // Vote operations
 
 func (repo *SessionRepository) AddVote(ctx context.Context, code string, choiceTitle string, vote models.Vote) error {

@@ -40,6 +40,15 @@ type AddChoiceRequest struct {
 	Rank          int    `json:"rank"`
 }
 
+type VoteValue struct {
+	ChoiceTitle string `json:"choiceTitle" binding:"required"`
+	Value       int    `json:"value" binding:"min=0,max=1"`
+}
+
+type SubmitVotesRequest struct {
+	Votes []VoteValue `json:"votes" binding:"required"`
+}
+
 type UpdateChoiceRequest struct {
 	Title         string `json:"title" binding:"required"`
 	Integration   string `json:"integration"`
