@@ -109,6 +109,31 @@ func (repo *SessionRepository) UpdateSessionPhase(ctx context.Context, code stri
 	return nil
 }
 
+func (repo *SessionRepository) SetPermalink(ctx context.Context, code string, permalink string) error {
+	filter := bson.D{{"code", bson.D{{"$eq", code}}}}
+	update := bson.D{{"$set", bson.D{
+		{"permalink", permalink},
+		{"updatedAt", time.Now()},
+	}}}
+	result, err := repo.session.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return err
+	} else if result.MatchedCount == 0 {
+		return fmt.Errorf("session not found")
+	}
+	return nil
+}
+
+func (repo *SessionRepository) FindSessionByPermalink(ctx context.Context, permalink string) (*models.Session, error) {
+	filter := bson.D{{"permalink", bson.D{{"$eq", permalink}}}}
+	var session models.Session
+	err := repo.session.FindOne(ctx, filter).Decode(&session)
+	if err != nil {
+		return nil, err
+	}
+	return &session, nil
+}
+
 func (repo *SessionRepository) SaveFinalizedChoices(ctx context.Context, code string, choices []models.Choice) error {
 	filter := bson.D{{"code", bson.D{{"$eq", code}}}}
 	update := bson.D{{"$set", bson.D{

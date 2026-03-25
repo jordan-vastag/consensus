@@ -640,3 +640,26 @@ func (h *SessionHandler) ClearMemberChoices(c *gin.Context) {
 		Msg: "Choices cleared",
 	})
 }
+
+func (h *SessionHandler) GetResultsByPermalink(c *gin.Context) {
+	permalink := c.Param("id")
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), REQUEST_TIMEOUT_SECONDS*time.Second)
+	defer cancel()
+
+	session, err := h.repo.FindSessionByPermalink(ctx, permalink)
+	if err != nil {
+		c.JSON(http.StatusNotFound, models.ErrorResponse{
+			Error: "Results not found",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, models.GetResultsResponse{
+		Msg:           "Results retrieved",
+		Title:         session.Title,
+		RankedChoices: session.RankedChoices,
+		VotingMode:    session.Config.VotingMode,
+		Permalink:     session.Permalink,
+	})
+}

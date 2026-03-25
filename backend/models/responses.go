@@ -85,3 +85,11 @@ type UpdateChoiceResponse struct {
 	Msg    string `json:"msg"`
 	Choice Choice `json:"choice"`
 }
+
+type GetResultsResponse struct {
+	Msg           string   `json:"msg"`
+	Title         string   `json:"title"`
+	RankedChoices []Choice `json:"rankedChoices"`
+	VotingMode    string   `json:"votingMode"`
+	Permalink     string   `json:"permalink"`
+}

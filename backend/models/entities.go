@@ -12,6 +12,7 @@ type Session struct {
 	RankedChoices    []Choice      `json:"rankedChoices" bson:"rankedChoices"`
 	Title     string        `json:"title" bson:"title"`
 	Phase     string        `json:"phase" bson:"phase"`
+	Permalink string        `json:"permalink" bson:"permalink"`
 	Config    SessionConfig `json:"config" bson:"config"`
 	CreatedAt time.Time     `json:"createdAt" bson:"createdAt"`
 	UpdatedAt time.Time     `json:"updatedAt" bson:"updatedAt"`

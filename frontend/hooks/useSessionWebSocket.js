@@ -65,7 +65,10 @@ export function useSessionWebSocket(sessionCode, memberName, handlers = {}) {
               onMemberReady?.(message.memberName, message.ready);
               break;
             case "phase_changed":
-              onPhaseChanged?.(message.phase, message.ready, message.choices);
+              if (message.phase === "final" && message.permalink) {
+                shouldReconnectRef.current = false;
+              }
+              onPhaseChanged?.(message.phase, message.ready, message.choices, message.permalink);
               break;
             case "connected_users":
               onConnectedUsers?.(message.members);

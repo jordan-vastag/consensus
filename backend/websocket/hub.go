@@ -267,6 +267,27 @@ func (h *Hub) allVotedLocked(sessionCode string) bool {
 	return true
 }
 
+// DisconnectSession closes all client connections for a session and cleans up state
+func (h *Hub) DisconnectSession(sessionCode string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	clients, ok := h.sessions[sessionCode]
+	if !ok {
+		return
+	}
+
+	for client := range clients {
+		close(client.send)
+		client.conn.Close()
+	}
+
+	delete(h.sessions, sessionCode)
+	delete(h.ready, sessionCode)
+	delete(h.submitted, sessionCode)
+	delete(h.voted, sessionCode)
+}
+
 // GetConnectedMembers returns a list of member names currently connected to a session
 func (h *Hub) GetConnectedMembers(sessionCode string) []string {
 	h.mu.RLock()

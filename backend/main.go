@@ -21,6 +21,15 @@ import (
 
 const DB_NAME = "dev"
 
+func generatePermalinkID() string {
+	const chars = "23456789abcdefghjkmnpqrstuvwxyz"
+	id := make([]byte, 10)
+	for i := range id {
+		id[i] = chars[rand.Intn(len(chars))]
+	}
+	return string(id)
+}
+
 func CORSMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
@@ -181,17 +190,32 @@ func main() {
 			log.Printf("phase update: failed to set final for session %s: %v", sessionCode, err)
 		}
 
+		// Generate permalink
+		permalinkID := generatePermalinkID()
+		if err := sessionRepo.SetPermalink(ctx, sessionCode, permalinkID); err != nil {
+			log.Printf("permalink: failed to set for session %s: %v", sessionCode, err)
+		}
+
+		// Close the session
+		if err := sessionRepo.CloseSession(ctx, sessionCode); err != nil {
+			log.Printf("close: failed for session %s: %v", sessionCode, err)
+		}
+
+		// Broadcast final phase with permalink, then disconnect all clients
 		hub.BroadcastToSession(sessionCode, struct {
-			Type    string          `json:"type"`
-			Phase   string          `json:"phase"`
-			Ready   map[string]bool `json:"ready"`
-			Choices []models.Choice `json:"choices"`
+			Type      string          `json:"type"`
+			Phase     string          `json:"phase"`
+			Ready     map[string]bool `json:"ready"`
+			Choices   []models.Choice `json:"choices"`
+			Permalink string          `json:"permalink"`
 		}{
-			Type:    websocket.TypePhaseChanged,
-			Phase:   "final",
-			Ready:   hub.GetReadyState(sessionCode),
-			Choices: choices,
+			Type:      websocket.TypePhaseChanged,
+			Phase:     "final",
+			Ready:     hub.GetReadyState(sessionCode),
+			Choices:   choices,
+			Permalink: permalinkID,
 		})
+
 	}
 
 	sessionHandler := handlers.NewSessionHandler(sessionRepo, hub)
@@ -218,6 +242,8 @@ func main() {
 		sessionRoutes.DELETE("/:code/member/:name/choice", sessionHandler.ClearMemberChoices)
 		sessionRoutes.POST("/:code/member/:name/votes", sessionHandler.SubmitMemberVotes)
 	}
+
+	router.GET("/api/results/:id", sessionHandler.GetResultsByPermalink)
 
 	integrationHandler := handlers.NewIntegrationHandler()
 	integrationRoutes := router.Group("/api/integrations")

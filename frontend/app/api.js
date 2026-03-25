@@ -105,10 +105,18 @@ async function submitVotes(code, memberName, votes) {
   return response.json();
 }
 
+async function getResults(permalinkId) {
+  const url = `${API_BASE_URL}/results/${permalinkId}`;
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Response status: ${response.status}`);
+  return response.json();
+}
+
 export {
   addChoice,
   clearChoices,
   getMemberChoices,
+  getResults,
   getSession,
   hostSession,
   joinSession,

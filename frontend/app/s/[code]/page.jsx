@@ -216,7 +216,12 @@ export default function SessionPage() {
     }));
   }, []);
 
-  const handlePhaseChanged = useCallback((phase, readyMap, choices) => {
+  const handlePhaseChanged = useCallback((phase, readyMap, choices, permalink) => {
+    if (phase === "final" && permalink) {
+      localStorage.removeItem(SESSION_KEY);
+      router.push(`/results/${permalink}`);
+      return;
+    }
     setSessionState((prev) => ({
       ...prev,
       phase,
@@ -233,7 +238,7 @@ export default function SessionPage() {
     } else if (choices?.length > 0) {
       setAllChoices(choices);
     }
-  }, []);
+  }, [router]);
 
   const handleConnectedUsers = useCallback((connectedMembers) => {
     setSessionState((prev) => {
@@ -313,16 +318,18 @@ export default function SessionPage() {
       .catch((e) => console.error("Failed to fetch choices:", e));
   }, [sessionState.phase, sessionState.code]);
 
-  // Fetch ranked choices when entering final phase
+  // Redirect to permalink when entering final phase via reconnect
   useEffect(() => {
     if (sessionState.phase !== "final" || !sessionState.code) return;
     getSession(sessionState.code)
       .then((response) => {
-        const rc = response.Session.rankedChoices;
-        if (rc?.length > 0) setAllChoices(rc);
+        if (response.Session.permalink) {
+          localStorage.removeItem(SESSION_KEY);
+          router.push(`/results/${response.Session.permalink}`);
+        }
       })
-      .catch((e) => console.error("Failed to fetch ranked choices:", e));
-  }, [sessionState.phase, sessionState.code]);
+      .catch((e) => console.error("Failed to fetch session:", e));
+  }, [sessionState.phase, sessionState.code, router]);
 
   // Compute submission status from WebSocket-tracked submitted state
   const membersWhoHaventSubmitted = sessionState.members.filter(
@@ -444,6 +451,13 @@ export default function SessionPage() {
             if (m.voted) voted[m.name] = true;
           });
           const phase = response.Session.phase || "lobby";
+
+          // If session is finalized, redirect to permalink
+          if (phase === "final" && response.Session.permalink) {
+            localStorage.removeItem(SESSION_KEY);
+            router.push(`/results/${response.Session.permalink}`);
+            return;
+          }
 
           // If this member already submitted/voted, show the waiting screen
           const mySubmitted = submitted[savedSession.name];
@@ -1238,33 +1252,6 @@ export default function SessionPage() {
         </Card>
       )}
 
-      {sessionState.active && sessionState.phase === "final" && (
-        <Card className="w-full max-w-sm m-10">
-          <CardHeader>
-            <CardTitle className="text-2xl">{sessionState.title}</CardTitle>
-            <CardDescription>Results</CardDescription>
-            <CardAction><UserBadge name={sessionState.myName} /></CardAction>
-          </CardHeader>
-          <CardContent>
-            <ol className="space-y-2">
-              {allChoices.map((choice, index) => (
-                <li
-                  key={`${choice.title}-${index}`}
-                  className="flex items-center justify-between py-2 px-4 rounded-md bg-muted"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-muted-foreground text-sm w-4">{index + 1}.</span>
-                    <span>{choice.title}</span>
-                  </div>
-                  <span className="text-sm font-medium text-green-700">
-                    {choice.rank} {isRankedChoice ? "pts" : "yes"}
-                  </span>
-                </li>
-              ))}
-            </ol>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }
