@@ -3,9 +3,11 @@
 import {
   addChoice,
   clearChoices,
+  closeSession,
   getMemberChoices,
   getSession,
   joinSession,
+  leaveSession,
   removeChoice,
   submitVotes,
 } from "@/app/api";
@@ -30,6 +32,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/ui/dialog";
 import { Input } from "@/ui/input";
 import { Spinner } from "@/ui/spinner";
 import {
@@ -139,6 +148,9 @@ export default function SessionPage() {
   const [editingChoiceTitle, setEditingChoiceTitle] = useState(null);
   const [editingListChoiceTitle, setEditingListChoiceTitle] = useState(null);
   const [editingListChoiceValue, setEditingListChoiceValue] = useState("");
+  const [isLeavingSession, setIsLeavingSession] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [closedCountdown, setClosedCountdown] = useState(null);
   const [sessionState, setSessionState] = useState({
     active: false,
     code: "",
@@ -269,7 +281,25 @@ export default function SessionPage() {
     }));
   }, []);
 
-  const { isConnected, connect, setReady, submitChoices, submitVotes: submitVotesWS } = useSessionWebSocket(
+  const handleSessionClosed = useCallback(() => {
+    setClosedCountdown(3);
+  }, []);
+
+  useEffect(() => {
+    if (closedCountdown === null || closedCountdown < 1) return;
+    const timer = setTimeout(() => {
+      if (closedCountdown === 1) {
+        setClosedCountdown(null);
+        localStorage.removeItem(SESSION_KEY);
+        router.push("/");
+      } else {
+        setClosedCountdown((prev) => prev - 1);
+      }
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [closedCountdown, router]);
+
+  const { isConnected, connect, disconnect, setReady, submitChoices, submitVotes: submitVotesWS } = useSessionWebSocket(
     sessionState.code,
     sessionState.myName,
     {
@@ -280,6 +310,7 @@ export default function SessionPage() {
       onConnectedUsers: handleConnectedUsers,
       onMemberSubmitted: handleMemberSubmitted,
       onMemberVoted: handleMemberVoted,
+      onSessionClosed: handleSessionClosed,
     }
   );
 
@@ -658,7 +689,76 @@ export default function SessionPage() {
       {sessionState.active && sessionState.phase === "lobby" && (
         <Card className="w-full max-w-sm m-10">
           <CardHeader>
-            <CardTitle className="text-2xl">{sessionState.title}</CardTitle>
+            <CardTitle className="text-2xl flex items-center gap-2">
+              {sessionState.title}
+              <Dialog>
+                <DialogTrigger asChild>
+                  <button
+                    className="cursor-pointer opacity-60 hover:opacity-100 transition-opacity"
+                    aria-label="Settings"
+                  >
+                    <Image src="/settings-sliders.svg" alt="Settings" title="Settings" width={20} height={20} />
+                  </button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Settings</DialogTitle>
+                  </DialogHeader>
+                  <div className="pt-4">
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" className="w-full">
+                          {sessionState.myName === sessionState.host ? "End Session" : "Leave Session"}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>
+                            {sessionState.myName === sessionState.host ? "End Session?" : "Leave Session?"}
+                          </AlertDialogTitle>
+                          <AlertDialogDescription>
+                            {sessionState.myName === sessionState.host
+                              ? "Are you sure you want to end this session? This will end the session for all users."
+                              : "Are you sure you want to leave this session? You won\u0027t be able to rejoin."}
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            disabled={isLeavingSession}
+                            onClick={async () => {
+                              setIsLeavingSession(true);
+                              try {
+                                if (sessionState.myName === sessionState.host) {
+                                  await closeSession(sessionState.code, sessionState.myName);
+                                  disconnect();
+                                  setIsRedirecting(true);
+                                  localStorage.removeItem(SESSION_KEY);
+                                  router.push("/");
+                                } else {
+                                  await leaveSession(sessionState.code, sessionState.myName);
+                                  localStorage.removeItem(SESSION_KEY);
+                                  router.push("/");
+                                }
+                              } catch {
+                                setIsLeavingSession(false);
+                                toast.error(
+                                  sessionState.myName === sessionState.host
+                                    ? "Failed to end session"
+                                    : "Failed to leave session"
+                                );
+                              }
+                            }}
+                          >
+                            {isLeavingSession ? <Spinner className="size-4" /> : (sessionState.myName === sessionState.host ? "End" : "Leave")}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </CardTitle>
             <CardDescription className="text-lg">
               Join Code: {sessionState.code.toUpperCase()}
               <button
@@ -1251,6 +1351,23 @@ export default function SessionPage() {
           </CardContent>
         </Card>
       )}
+
+      <Dialog open={isRedirecting || closedCountdown !== null}>
+        <DialogContent showCloseButton={false}>
+          <DialogTitle className="sr-only">Redirecting</DialogTitle>
+          <div className="flex flex-col items-center justify-center gap-3 py-4">
+            <svg className="animate-spin h-6 w-6 text-muted-foreground" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            <p className="text-sm text-muted-foreground">
+              {closedCountdown !== null
+                ? `Host ended the session. Redirecting in ${closedCountdown}...`
+                : "Redirecting..."}
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );

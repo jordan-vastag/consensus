@@ -10,6 +10,7 @@ const (
 	TypeConnectedUsers  = "connected_users"
 	TypeMemberSubmitted = "member_submitted"
 	TypeMemberVoted     = "member_voted"
+	TypeSessionClosed   = "session_closed"
 
 	// Inbound (client → server)
 	TypeSetReady      = "set_ready"
@@ -55,6 +56,10 @@ type MemberSubmittedMsg struct {
 type MemberVotedMsg struct {
 	Type       string `json:"type"`
 	MemberName string `json:"memberName"`
+}
+
+type SessionClosedMsg struct {
+	Type string `json:"type"`
 }
 
 // Inbound messages

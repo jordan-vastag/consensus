@@ -105,6 +105,38 @@ async function submitVotes(code, memberName, votes) {
   return response.json();
 }
 
+async function closeSession(code, name) {
+  const url = `${API_BASE_URL}/session/${code}/close`;
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ name }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Response status: ${response.status}`);
+  }
+  return response.json();
+}
+
+async function leaveSession(code, name) {
+  const url = `${API_BASE_URL}/session/${code}/leave`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ name }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Response status: ${response.status}`);
+  }
+  return response.json();
+}
+
 async function getResults(permalinkId) {
   const url = `${API_BASE_URL}/results/${permalinkId}`;
   const response = await fetch(url);
@@ -115,11 +147,13 @@ async function getResults(permalinkId) {
 export {
   addChoice,
   clearChoices,
+  closeSession,
   getMemberChoices,
   getResults,
   getSession,
   hostSession,
   joinSession,
+  leaveSession,
   removeChoice,
   submitVotes,
 };
