@@ -73,6 +73,7 @@ function UserBadge({ name }) {
   return (
     <div className="flex items-center gap-1.5 text-md text-muted-foreground">
       <i>{name}</i>
+      <img src="/user.svg" alt="You" width={16} height={16} />
     </div>
   );
 }
@@ -1002,9 +1003,9 @@ export default function SessionPage() {
                       sessionState.ready[member] ? "bg-green-500" : "bg-gray-300"
                     }`}
                   />
-                  <span>
+                  <span className="flex items-center gap-1">
                     {member}
-                    {member === sessionState.host && " (host)"}
+                    {member === sessionState.host && <img src="/star-user.svg" alt="Host" title="Host" width={14} height={14} />}
                     {member === sessionState.myName && " (you)"}
                   </span>
                 </li>
@@ -1202,8 +1203,9 @@ export default function SessionPage() {
                       sessionState.submitted[m] ? "bg-green-500" : "bg-gray-300"
                     }`}
                   />
-                  <span className="text-muted-foreground">
+                  <span className="flex items-center gap-1 text-muted-foreground">
                     {m}
+                    {m === sessionState.host && <img src="/star-user.svg" alt="Host" title="Host" width={14} height={14} />}
                     {m === sessionState.myName && " (you)"}
                   </span>
                 </li>
@@ -1531,8 +1533,9 @@ export default function SessionPage() {
                       sessionState.voted[m] ? "bg-green-500" : "bg-gray-300"
                     }`}
                   />
-                  <span className="text-muted-foreground">
+                  <span className="flex items-center gap-1 text-muted-foreground">
                     {m}
+                    {m === sessionState.host && <img src="/star-user.svg" alt="Host" title="Host" width={14} height={14} />}
                     {m === sessionState.myName && " (you)"}
                   </span>
                 </li>
