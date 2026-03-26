@@ -20,6 +20,7 @@ import {
 import { Label } from "@/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/ui/radio-group";
 import { Spinner } from "@/ui/spinner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/tabs";
 import { REGEXP_ONLY_DIGITS_AND_CHARS } from "input-otp";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -43,8 +44,7 @@ export default function Home() {
   useEffect(() => {
     setSavedSessionData(getSavedSession());
   }, []);
-  const [hostClicked, setHostClicked] = useState(false);
-  const [joinClicked, setJoinClicked] = useState(false);
+  const [activeTab, setActiveTab] = useState("join");
   const [joinCode, setJoinCode] = useState("");
   const [errorMessage, setErrorMessage] = useState({
     visible: false,
@@ -75,8 +75,6 @@ export default function Home() {
 
   const handleCancelClick = () => {
     localStorage.removeItem(SESSION_KEY);
-    setHostClicked(false);
-    setJoinClicked(false);
     setSavedSessionData(null);
   };
 
@@ -150,30 +148,74 @@ export default function Home() {
     // TODO: form input validation
 
     <div className="flex justify-center items-center h-200 flex-col">
-      <h1 className="self-center text-7xl font-bold">Consensus</h1>
+      <div className="flex items-center">
+        <Image
+          src="/temp-logo.svg"
+          alt="Logo"
+          width={150}
+          height={150}
+          loading="eager"
+        />
+        <h1 className="text-7xl font-bold">Consensus</h1>
+      </div>
 
       {!errorMessage.visible && !showRejoinPrompt && (
-        <>
-          {!(hostClicked || joinClicked) && (
-            <>
-              <Image
-                src="/temp-logo.svg"
-                alt="Placeholder Logo"
-                width={500}
-                height={500}
-                loading="eager"
-              />
-              <div>
-                To begin,{" "}
-                <Button onClick={() => setJoinClicked(true)}>Join</Button> or{" "}
-                <Button onClick={() => setHostClicked(true)}>Host</Button> a
-                session
-              </div>
-            </>
-          )}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full max-w-sm mt-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="join">Join</TabsTrigger>
+            <TabsTrigger value="host">Host</TabsTrigger>
+          </TabsList>
 
-          {hostClicked && (
-            <Card className="w-full max-w-sm m-10">
+          <TabsContent value="join">
+            <Card>
+              <CardHeader>
+                <CardTitle>Join a Session</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col items-center space-x-2 gap-2">
+                  <InputOTP
+                    maxLength={6}
+                    pattern={REGEXP_ONLY_DIGITS_AND_CHARS}
+                    value={joinCode}
+                    onChange={(code) => setJoinCode(code)}
+                  >
+                    <InputOTPGroup>
+                      <InputOTPSlot index={0} />
+                      <InputOTPSeparator />
+                      <InputOTPSlot index={1} />
+                      <InputOTPSeparator />
+                      <InputOTPSlot index={2} />
+                      <InputOTPSeparator />
+                      <InputOTPSlot index={3} />
+                      <InputOTPSeparator />
+                      <InputOTPSlot index={4} />
+                      <InputOTPSeparator />
+                      <InputOTPSlot index={5} />
+                    </InputOTPGroup>
+                  </InputOTP>
+                  <div className="text-center text-sm">Join code</div>
+                </div>
+                {joinError && (
+                  <p className="text-destructive text-sm text-center mt-2">{joinError}</p>
+                )}
+                {!isLoading && (
+                  <div className="flex items-center justify-center mt-6">
+                    <Button
+                      className="w-30"
+                      onClick={handleJoinSessionClick}
+                      disabled={joinCode.length !== 6}
+                    >
+                      Join Session
+                    </Button>
+                  </div>
+                )}
+                {isLoading && <Spinner className="self-center size-8 mt-4" />}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="host">
+            <Card>
               <CardHeader>
                 <CardTitle>Host a Session</CardTitle>
                 <CardDescription>Choose options</CardDescription>
@@ -300,14 +342,7 @@ export default function Home() {
                   </div>
                 </div>
                 {!isLoading && (
-                  <div className="flex items-center justify-evenly mt-6">
-                    <Button
-                      variant="outline"
-                      className="w-20"
-                      onClick={handleCancelClick}
-                    >
-                      Cancel
-                    </Button>
+                  <div className="flex items-center justify-center mt-6">
                     <Button
                       className="w-30"
                       onClick={handleHostSessionClick}
@@ -320,63 +355,8 @@ export default function Home() {
                 {isLoading && <Spinner className="self-center size-8 mt-4" />}
               </CardContent>
             </Card>
-          )}
-
-          {joinClicked && (
-            <Card className="w-full max-w-sm m-10">
-              <CardHeader>
-                <CardTitle>Join a Session</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-col items-center space-x-2 gap-2">
-                  <InputOTP
-                    maxLength={6}
-                    pattern={REGEXP_ONLY_DIGITS_AND_CHARS}
-                    value={joinCode}
-                    onChange={(code) => setJoinCode(code)}
-                  >
-                    <InputOTPGroup>
-                      <InputOTPSlot index={0} />
-                      <InputOTPSeparator />
-                      <InputOTPSlot index={1} />
-                      <InputOTPSeparator />
-                      <InputOTPSlot index={2} />
-                      <InputOTPSeparator />
-                      <InputOTPSlot index={3} />
-                      <InputOTPSeparator />
-                      <InputOTPSlot index={4} />
-                      <InputOTPSeparator />
-                      <InputOTPSlot index={5} />
-                    </InputOTPGroup>
-                  </InputOTP>
-                  <div className="text-center text-sm">Join code</div>
-                </div>
-                {joinError && (
-                  <p className="text-destructive text-sm text-center mt-2">{joinError}</p>
-                )}
-                {!isLoading && (
-                  <div className="flex items-center justify-evenly mt-6">
-                    <Button
-                      variant="outline"
-                      className="w-20"
-                      onClick={handleCancelClick}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      className="w-30"
-                      onClick={handleJoinSessionClick}
-                      disabled={joinCode.length !== 6}
-                    >
-                      Join Session
-                    </Button>
-                  </div>
-                )}
-                {isLoading && <Spinner className="self-center size-8 mt-4" />}
-              </CardContent>
-            </Card>
-          )}
-        </>
+          </TabsContent>
+        </Tabs>
       )}
 
       {showRejoinPrompt && savedSessionData && (
