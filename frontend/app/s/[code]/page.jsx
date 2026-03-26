@@ -10,6 +10,7 @@ import {
   leaveSession,
   removeChoice,
   submitVotes,
+  updateSessionConfig,
 } from "@/app/api";
 import { useSessionWebSocket } from "@/hooks/useSessionWebSocket";
 import {
@@ -32,14 +33,18 @@ import {
   CardHeader,
   CardTitle,
 } from "@/ui/card";
+import { Checkbox } from "@/ui/checkbox";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/ui/dialog";
 import { Input } from "@/ui/input";
+import { Label } from "@/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/ui/radio-group";
 import { Spinner } from "@/ui/spinner";
 import {
   closestCenter,
@@ -66,9 +71,8 @@ const SESSION_KEY = "consensus_session_data";
 
 function UserBadge({ name }) {
   return (
-    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-      <span>{name}</span>
-      <Image src="/user.svg" alt="User" width={18} height={18} className="opacity-60" />
+    <div className="flex items-center gap-1.5 text-md text-muted-foreground">
+      <i>{name}</i>
     </div>
   );
 }
@@ -150,6 +154,9 @@ export default function SessionPage() {
   const [editingListChoiceValue, setEditingListChoiceValue] = useState("");
   const [isLeavingSession, setIsLeavingSession] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [isEditingConfig, setIsEditingConfig] = useState(false);
+  const [isSavingConfig, setIsSavingConfig] = useState(false);
+  const [editConfig, setEditConfig] = useState(null);
   const [closedCountdown, setClosedCountdown] = useState(null);
   const [sessionState, setSessionState] = useState({
     active: false,
@@ -285,6 +292,10 @@ export default function SessionPage() {
     setClosedCountdown(3);
   }, []);
 
+  const handleConfigUpdated = useCallback((config) => {
+    setSessionState((prev) => ({ ...prev, config: { ...prev.config, ...config } }));
+  }, []);
+
   useEffect(() => {
     if (closedCountdown === null || closedCountdown < 1) return;
     const timer = setTimeout(() => {
@@ -311,6 +322,7 @@ export default function SessionPage() {
       onMemberSubmitted: handleMemberSubmitted,
       onMemberVoted: handleMemberVoted,
       onSessionClosed: handleSessionClosed,
+      onConfigUpdated: handleConfigUpdated,
     }
   );
 
@@ -691,7 +703,7 @@ export default function SessionPage() {
           <CardHeader>
             <CardTitle className="text-2xl flex items-center gap-2">
               {sessionState.title}
-              <Dialog>
+              <Dialog onOpenChange={(open) => { if (!open) { setIsEditingConfig(false); setEditConfig(null); } }}>
                 <DialogTrigger asChild>
                   <button
                     className="cursor-pointer opacity-60 hover:opacity-100 transition-opacity"
@@ -704,10 +716,142 @@ export default function SessionPage() {
                   <DialogHeader>
                     <DialogTitle>Settings</DialogTitle>
                   </DialogHeader>
-                  <div className="pt-4">
+                  <div className="pt-2 flex flex-col gap-4">
+                    <div className="flex items-center gap-2">
+                      <div className="text-sm font-medium">Session Options</div>
+                      {sessionState.myName === sessionState.host && !isEditingConfig && (
+                        <button
+                          className="cursor-pointer opacity-60 hover:opacity-100 transition-opacity"
+                          aria-label="Edit session options"
+                          onClick={() => {
+                            setEditConfig({
+                              anonymity: sessionState.config?.anonymity || false,
+                              allow_empty_voters: sessionState.config?.allow_empty_voters || false,
+                              min_choices: sessionState.config?.min_choices || 0,
+                              max_choices: sessionState.config?.max_choices || 0,
+                              voting_mode: sessionState.config?.voting_mode || "yes_no",
+                            });
+                            if (sessionState.ready[sessionState.myName]) {
+                              setReady(false);
+                            }
+                            setIsEditingConfig(true);
+                          }}
+                        >
+                          <Image src="/edit.svg" alt="Edit" title="Edit" width={16} height={16} />
+                        </button>
+                      )}
+                    </div>
+                    {!isEditingConfig ? (
+                      <div className="flex flex-col gap-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Anonymize votes</span>
+                          <span>{sessionState.config?.anonymity ? "Yes" : "No"}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Allow everyone to vote</span>
+                          <span>{sessionState.config?.allow_empty_voters ? "Yes" : "No"}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Number of choices</span>
+                          <span>{sessionState.config?.min_choices || 0} - {sessionState.config?.max_choices || 0}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Voting mode</span>
+                          <span>{sessionState.config?.voting_mode === "ranked_choice" ? "Ranked Choice" : "Yes/No"}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-4">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="edit-anonymize"
+                            checked={editConfig.anonymity}
+                            onCheckedChange={(checked) => setEditConfig({ ...editConfig, anonymity: Boolean(checked) })}
+                          />
+                          <Label htmlFor="edit-anonymize">Anonymize votes</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="edit-allow-empty"
+                            checked={editConfig.allow_empty_voters}
+                            onCheckedChange={(checked) => setEditConfig({ ...editConfig, allow_empty_voters: Boolean(checked) })}
+                          />
+                          <Label htmlFor="edit-allow-empty">Allow everyone to vote</Label>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <Label>Number of choices</Label>
+                          <div className="flex flex-row space-x-4">
+                            <div className="flex items-center gap-2">
+                              <Label>Min:</Label>
+                              <Input
+                                type="number"
+                                className="w-16"
+                                value={editConfig.min_choices}
+                                onChange={(e) => setEditConfig({ ...editConfig, min_choices: parseInt(e.target.value, 10) || 0 })}
+                              />
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Label>Max:</Label>
+                              <Input
+                                type="number"
+                                className="w-16"
+                                value={editConfig.max_choices}
+                                onChange={(e) => setEditConfig({ ...editConfig, max_choices: parseInt(e.target.value, 10) || 0 })}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <Label>Voting mode</Label>
+                          <RadioGroup
+                            value={editConfig.voting_mode}
+                            onValueChange={(value) => setEditConfig({ ...editConfig, voting_mode: value })}
+                          >
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem id="edit-yes-no" value="yes_no" />
+                              <Label htmlFor="edit-yes-no">Yes/No</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem id="edit-ranked-choice" value="ranked_choice" />
+                              <Label htmlFor="edit-ranked-choice">Ranked Choice</Label>
+                            </div>
+                          </RadioGroup>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            className="flex-1"
+                            onClick={() => { setIsEditingConfig(false); setEditConfig(null); }}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            className="flex-1"
+                            disabled={isSavingConfig}
+                            onClick={async () => {
+                              setIsSavingConfig(true);
+                              try {
+                                await updateSessionConfig(sessionState.code, editConfig);
+                                setSessionState((prev) => ({ ...prev, config: { ...prev.config, ...editConfig } }));
+                                setIsEditingConfig(false);
+                                setEditConfig(null);
+                                toast.success("Session options updated");
+                              } catch {
+                                toast.error("Failed to update session options");
+                              }
+                              setIsSavingConfig(false);
+                            }}
+                          >
+                            {isSavingConfig ? <Spinner className="size-4" /> : "Save"}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    <hr />
+                    <div className="flex gap-2">
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="destructive" className="w-full">
+                        <Button variant="destructive" className="flex-1">
                           {sessionState.myName === sessionState.host ? "End Session" : "Leave Session"}
                         </Button>
                       </AlertDialogTrigger>
@@ -755,6 +899,10 @@ export default function SessionPage() {
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
+                    <DialogClose asChild>
+                      <Button variant="outline" className="flex-1">Close</Button>
+                    </DialogClose>
+                    </div>
                   </div>
                 </DialogContent>
               </Dialog>
@@ -796,7 +944,7 @@ export default function SessionPage() {
                   onClick={() => setReady(!sessionState.ready[sessionState.myName])}
                   disabled={!isConnected}
                 >
-                  {sessionState.ready[sessionState.myName] ? "Not Ready" : "Ready"}
+                  {sessionState.ready[sessionState.myName] ? "I'm Ready!" : "Ready?"}
                 </Button>
               </div>
               </div>

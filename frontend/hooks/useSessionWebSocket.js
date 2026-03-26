@@ -52,7 +52,7 @@ export function useSessionWebSocket(sessionCode, memberName, handlers = {}) {
       ws.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
-          const { onMemberJoined, onMemberLeft, onMemberReady, onPhaseChanged, onConnectedUsers, onMemberSubmitted, onMemberVoted, onSessionClosed } = handlersRef.current;
+          const { onMemberJoined, onMemberLeft, onMemberReady, onPhaseChanged, onConnectedUsers, onMemberSubmitted, onMemberVoted, onSessionClosed, onConfigUpdated } = handlersRef.current;
 
           switch (message.type) {
             case "member_joined":
@@ -82,6 +82,9 @@ export function useSessionWebSocket(sessionCode, memberName, handlers = {}) {
             case "session_closed":
               shouldReconnectRef.current = false;
               onSessionClosed?.();
+              break;
+            case "config_updated":
+              onConfigUpdated?.(message.config);
               break;
             default:
               console.log("Unknown message type:", message.type);

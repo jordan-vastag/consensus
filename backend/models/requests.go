@@ -15,8 +15,7 @@ type LeaveSessionRequest struct {
 }
 
 type UpdateSessionConfigRequest struct {
-	Code      string        `json:"code" binding:"required"`
-	NewConfig SessionConfig `json:"newConfig" bind:"required"`
+	NewConfig SessionConfig `json:"newConfig" binding:"required"`
 }
 
 type CloseSessionRequest struct {

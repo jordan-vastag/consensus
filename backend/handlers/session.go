@@ -312,8 +312,8 @@ func (h *SessionHandler) GetSessions(c *gin.Context) {
 }
 
 func (h *SessionHandler) UpdateSessionConfig(c *gin.Context) {
-	// TODO: check if session is active
 	var req models.UpdateSessionConfigRequest
+	code := strings.ToLower(c.Param("code"))
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), REQUEST_TIMEOUT_SECONDS*time.Second)
 	defer cancel()
@@ -322,15 +322,21 @@ func (h *SessionHandler) UpdateSessionConfig(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, models.ErrorResponse{
 			Error: err.Error(),
 		})
+		return
 	}
 
-	oldConfig, err := h.repo.UpdateSessionConfig(ctx, &req.NewConfig)
+	oldConfig, err := h.repo.UpdateSessionConfig(ctx, code, &req.NewConfig)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
 			Error: err.Error(),
 		})
 		return
 	}
+
+	h.hub.BroadcastToSession(code, websocket.ConfigUpdatedMsg{
+		Type:   websocket.TypeConfigUpdated,
+		Config: req.NewConfig,
+	})
 
 	c.JSON(http.StatusOK, models.UpdateSessionConfigResponse{
 		Msg: "Session updated",

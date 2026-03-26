@@ -67,8 +67,36 @@ func (repo *SessionRepository) FindSessionByCode(ctx context.Context, code strin
 	return session, nil
 }
 
-func (repo *SessionRepository) UpdateSessionConfig(ctx context.Context, newConfig *models.SessionConfig) (oldConfig *models.SessionConfig, err error) {
-	return
+func (repo *SessionRepository) UpdateSessionConfig(ctx context.Context, code string, newConfig *models.SessionConfig) (oldConfig *models.SessionConfig, err error) {
+	filter := bson.D{{"code", bson.D{{"$eq", code}}}}
+
+	var session models.Session
+	err = repo.session.FindOne(ctx, filter).Decode(&session)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find session: %w", err)
+	}
+
+	oldConfig = &session.Config
+
+	currentTime := time.Now()
+	newConfig.CreatedAt = oldConfig.CreatedAt
+	newConfig.UpdatedAt = currentTime
+
+	update := bson.D{
+		{"$set", bson.D{
+			{"config", newConfig},
+			{"updatedAt", currentTime},
+		}},
+	}
+
+	result, err := repo.session.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return nil, err
+	} else if result.MatchedCount == 0 {
+		return nil, fmt.Errorf("failed to find session")
+	}
+
+	return oldConfig, nil
 }
 
 func (repo *SessionRepository) CloseSession(ctx context.Context, code string) (err error) {

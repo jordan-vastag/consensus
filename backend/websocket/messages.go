@@ -1,5 +1,7 @@
 package websocket
 
+import "consensus/models"
+
 // Message types
 const (
 	// Outbound (server → client)
@@ -11,6 +13,7 @@ const (
 	TypeMemberSubmitted = "member_submitted"
 	TypeMemberVoted     = "member_voted"
 	TypeSessionClosed   = "session_closed"
+	TypeConfigUpdated   = "config_updated"
 
 	// Inbound (client → server)
 	TypeSetReady      = "set_ready"
@@ -60,6 +63,11 @@ type MemberVotedMsg struct {
 
 type SessionClosedMsg struct {
 	Type string `json:"type"`
+}
+
+type ConfigUpdatedMsg struct {
+	Type   string              `json:"type"`
+	Config models.SessionConfig `json:"config"`
 }
 
 // Inbound messages
