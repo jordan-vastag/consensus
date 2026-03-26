@@ -14,6 +14,7 @@ const (
 	TypeMemberVoted     = "member_voted"
 	TypeSessionClosed   = "session_closed"
 	TypeConfigUpdated   = "config_updated"
+	TypeHostChanged     = "host_changed"
 
 	// Inbound (client → server)
 	TypeSetReady      = "set_ready"
@@ -68,6 +69,11 @@ type SessionClosedMsg struct {
 type ConfigUpdatedMsg struct {
 	Type   string              `json:"type"`
 	Config models.SessionConfig `json:"config"`
+}
+
+type HostChangedMsg struct {
+	Type    string `json:"type"`
+	NewHost string `json:"newHost"`
 }
 
 // Inbound messages

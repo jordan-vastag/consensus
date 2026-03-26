@@ -91,6 +91,7 @@ func (h *Handler) HandleWebSocket(c *gin.Context) {
 	}
 
 	client := NewClient(h.hub, conn, sessionCode, memberName)
+	client.host = memberInfo.host
 	client.submitted = memberInfo.submitted
 	client.voted = memberInfo.voted
 	h.hub.Register(client)

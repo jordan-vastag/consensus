@@ -15,11 +15,12 @@ type Hub struct {
 	register       chan *Client
 	unregister     chan *Client
 	mu             sync.RWMutex
-	OnAllReady        func(sessionCode string)
-	OnMemberSubmitted func(sessionCode, memberName string)
-	OnAllSubmitted    func(sessionCode string)
-	OnMemberVoted     func(sessionCode, memberName string)
-	OnAllVoted        func(sessionCode string)
+	OnAllReady          func(sessionCode string)
+	OnMemberSubmitted   func(sessionCode, memberName string)
+	OnAllSubmitted      func(sessionCode string)
+	OnMemberVoted       func(sessionCode, memberName string)
+	OnAllVoted          func(sessionCode string)
+	OnHostDisconnected  func(sessionCode, newHostName string)
 }
 
 func NewHub() *Hub {
@@ -61,34 +62,55 @@ func (h *Hub) Run() {
 			log.Printf("client registered: %s in session %s", client.memberName, client.sessionCode)
 
 		case client := <-h.unregister:
+			var newHost string
+			sessionCode := client.sessionCode
+
 			h.mu.Lock()
-			if clients, ok := h.sessions[client.sessionCode]; ok {
+			if clients, ok := h.sessions[sessionCode]; ok {
 				if _, ok := clients[client]; ok {
 					delete(clients, client)
 					close(client.send)
 
 					// Broadcast member left
-					h.broadcastToSessionLocked(client.sessionCode, MemberLeftMsg{
+					h.broadcastToSessionLocked(sessionCode, MemberLeftMsg{
 						Type:       TypeMemberLeft,
 						MemberName: client.memberName,
 					})
 
+					// If host disconnected and there are remaining clients, reassign host
+					if client.host && len(clients) > 0 {
+						for c := range clients {
+							newHost = c.memberName
+							c.host = true
+							break
+						}
+						h.broadcastToSessionLocked(sessionCode, HostChangedMsg{
+							Type:    TypeHostChanged,
+							NewHost: newHost,
+						})
+					}
+
 					// Clean up ready, submitted, and voted state
-					delete(h.ready[client.sessionCode], client.memberName)
-					delete(h.submitted[client.sessionCode], client.memberName)
-					delete(h.voted[client.sessionCode], client.memberName)
+					delete(h.ready[sessionCode], client.memberName)
+					delete(h.submitted[sessionCode], client.memberName)
+					delete(h.voted[sessionCode], client.memberName)
 
 					// Clean up empty session
 					if len(clients) == 0 {
-						delete(h.sessions, client.sessionCode)
-						delete(h.ready, client.sessionCode)
-						delete(h.submitted, client.sessionCode)
-						delete(h.voted, client.sessionCode)
+						delete(h.sessions, sessionCode)
+						delete(h.ready, sessionCode)
+						delete(h.submitted, sessionCode)
+						delete(h.voted, sessionCode)
 					}
 				}
 			}
 			h.mu.Unlock()
-			log.Printf("client unregistered: %s from session %s", client.memberName, client.sessionCode)
+
+			if newHost != "" && h.OnHostDisconnected != nil {
+				go h.OnHostDisconnected(sessionCode, newHost)
+			}
+
+			log.Printf("client unregistered: %s from session %s", client.memberName, sessionCode)
 		}
 	}
 }

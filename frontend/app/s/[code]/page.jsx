@@ -296,6 +296,22 @@ export default function SessionPage() {
     setSessionState((prev) => ({ ...prev, config: { ...prev.config, ...config } }));
   }, []);
 
+  const handleHostChanged = useCallback((newHost) => {
+    setSessionState((prev) => {
+      // Update localStorage with new host status
+      const savedSession = JSON.parse(localStorage.getItem(SESSION_KEY));
+      if (savedSession) {
+        localStorage.setItem(SESSION_KEY, JSON.stringify({ ...savedSession, host: prev.myName === newHost }));
+      }
+
+      if (prev.myName === newHost) {
+        toast("You are now the host");
+      }
+
+      return { ...prev, host: newHost };
+    });
+  }, []);
+
   useEffect(() => {
     if (closedCountdown === null || closedCountdown < 1) return;
     const timer = setTimeout(() => {
@@ -323,6 +339,7 @@ export default function SessionPage() {
       onMemberVoted: handleMemberVoted,
       onSessionClosed: handleSessionClosed,
       onConfigUpdated: handleConfigUpdated,
+      onHostChanged: handleHostChanged,
     }
   );
 
@@ -502,6 +519,18 @@ export default function SessionPage() {
             return;
           }
 
+          // Notify if user was previously host but no longer is
+          if (savedSession.host && host !== savedSession.name) {
+            toast("You are no longer the host");
+          }
+
+          // Update localStorage with current host status
+          const isNowHost = host === savedSession.name;
+          localStorage.setItem(
+            SESSION_KEY,
+            JSON.stringify({ ...savedSession, host: isNowHost })
+          );
+
           // If this member already submitted/voted, show the waiting screen
           const mySubmitted = submitted[savedSession.name];
           const myVoted = voted[savedSession.name];
@@ -581,9 +610,10 @@ export default function SessionPage() {
         const ready = {};
         members.forEach((m) => (ready[m] = false));
 
+        const isHost = response.Session.members.find((m) => m.name === joinName)?.host || false;
         localStorage.setItem(
           SESSION_KEY,
-          JSON.stringify({ name: joinName, code: sessionCode, title: response.Session.title })
+          JSON.stringify({ name: joinName, code: sessionCode, title: response.Session.title, host: isHost })
         );
 
         setSessionState({

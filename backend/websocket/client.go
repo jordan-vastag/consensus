@@ -21,6 +21,7 @@ type Client struct {
 	send        chan []byte
 	sessionCode string
 	memberName  string
+	host        bool
 	submitted   bool
 	voted       bool
 }

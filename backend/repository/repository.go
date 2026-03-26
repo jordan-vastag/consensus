@@ -220,6 +220,43 @@ func (repo *SessionRepository) FindActiveSessions(ctx context.Context) (activeSe
 	return activeSessions, nil
 }
 
+func (repo *SessionRepository) TransferHost(ctx context.Context, code string, newHost string) error {
+	filter := bson.D{{"code", bson.D{{"$eq", code}}}}
+	now := time.Now()
+
+	// Set all members' host to false, then set the new host's host to true
+	_, err := repo.session.UpdateOne(ctx, filter, bson.D{
+		{"$set", bson.D{
+			{"members.$[].host", false},
+			{"updatedAt", now},
+		}},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to clear host flags: %w", err)
+	}
+
+	result, err := repo.session.UpdateOne(ctx,
+		bson.D{
+			{"code", bson.D{{"$eq", code}}},
+			{"members.name", bson.D{{"$eq", newHost}}},
+		},
+		bson.D{
+			{"$set", bson.D{
+				{"members.$.host", true},
+				{"members.$.updatedAt", now},
+				{"updatedAt", now},
+			}},
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("failed to set new host: %w", err)
+	} else if result.MatchedCount == 0 {
+		return fmt.Errorf("new host member not found")
+	}
+
+	return nil
+}
+
 func (repo *SessionRepository) RemoveMemberFromSession(ctx context.Context, code string, name string) error {
 	filter := bson.D{
 		{"code", bson.D{{"$eq", code}}},

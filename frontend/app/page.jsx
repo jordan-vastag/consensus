@@ -120,6 +120,7 @@ export default function Home() {
             name: payload.name,
             code: response.Code,
             title: payload.title,
+            host: true,
           })
         );
         router.push(`/s/${response.Code}`);

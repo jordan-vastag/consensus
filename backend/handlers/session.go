@@ -6,6 +6,7 @@ import (
 	"consensus/websocket"
 	"context"
 	"fmt"
+	"log"
 	"math/rand"
 	"net/http"
 	"strings"
@@ -228,13 +229,6 @@ func (h *SessionHandler) LeaveSession(c *gin.Context) {
 		return
 	}
 
-	if isHost {
-		c.JSON(http.StatusForbidden, models.ErrorResponse{
-			Error: "Host cannot leave the session",
-		})
-		return
-	}
-
 	err = h.repo.RemoveMemberFromSession(ctx, code, req.Name)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
@@ -248,6 +242,23 @@ func (h *SessionHandler) LeaveSession(c *gin.Context) {
 		Type:       websocket.TypeMemberLeft,
 		MemberName: req.Name,
 	})
+
+	// If host left, reassign to another member
+	if isHost {
+		// Re-fetch session to find remaining members
+		updatedSession, fetchErr := h.repo.FindSessionByCode(ctx, code)
+		if fetchErr == nil && len(updatedSession.Members) > 0 {
+			newHost := updatedSession.Members[0].Name
+			if transferErr := h.repo.TransferHost(ctx, code, newHost); transferErr != nil {
+				log.Printf("host transfer on leave: failed for session %s: %v", code, transferErr)
+			} else {
+				h.hub.BroadcastToSession(code, websocket.HostChangedMsg{
+					Type:    websocket.TypeHostChanged,
+					NewHost: newHost,
+				})
+			}
+		}
+	}
 
 	c.JSON(http.StatusOK, models.MsgResponse{
 		Msg: "Left session",

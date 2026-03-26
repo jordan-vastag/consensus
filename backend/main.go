@@ -138,6 +138,16 @@ func main() {
 		}
 	}
 
+	hub.OnHostDisconnected = func(sessionCode, newHostName string) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := sessionRepo.TransferHost(ctx, sessionCode, newHostName); err != nil {
+			log.Printf("host transfer: failed for session %s to %s: %v", sessionCode, newHostName, err)
+		} else {
+			log.Printf("host transfer: %s is now host of session %s", newHostName, sessionCode)
+		}
+	}
+
 	hub.OnAllVoted = func(sessionCode string) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
