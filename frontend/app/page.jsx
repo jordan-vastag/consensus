@@ -263,8 +263,7 @@ export default function Home() {
                   />
                   <Label>Allow everyone to vote</Label>
                 </div>
-                <br />
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2 mt-4">
                   <Label className="inline-block mb-1">Number of choices</Label>
                   <div className="flex flex-row space-x-4">
                     <div className="flex items-center gap-2">
