@@ -1,7 +1,5 @@
 const API_BASE_URL = "http://localhost:8080/api";
 
-// TODO: URL encode member names when calling API
-
 async function hostSession(payload) {
   const url = `${API_BASE_URL}/session/`;
   const response = await fetch(url, {
@@ -155,6 +153,6 @@ export {
   joinSession,
   leaveSession,
   removeChoice,
-  submitVotes,
+  submitVotes
 };
 

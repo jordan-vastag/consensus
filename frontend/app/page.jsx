@@ -145,8 +145,6 @@ export default function Home() {
   };
 
   return (
-    // TODO: form input validation
-
     <div className="flex justify-center items-center h-200 flex-col">
       <div className="flex items-center">
         <Image
