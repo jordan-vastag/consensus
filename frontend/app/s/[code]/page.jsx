@@ -1081,7 +1081,7 @@ export default function SessionPage() {
                     }
                   }}
                 >
-                  <Image src="/thumbs-up.svg" alt="Yes" width={24} height={24} />
+                  <Image src="/thumbs-up.svg" alt="Thumbs Up" loading="eager" width={24} height={24} />
                 </Button>
               </div>
               <div className="flex items-center gap-6">
@@ -1091,7 +1091,7 @@ export default function SessionPage() {
                   className={currentChoiceIndex === 0 ? "invisible" : ""}
                   onClick={() => setCurrentChoiceIndex((i) => i - 1)}
                 >
-                  <Image src="/arrow-small-left.svg" alt="Previous" width={20} height={20} />
+                  <Image src="/arrow-small-left.svg" alt="Previous" loading="eager" width={20} height={20} />
                 </Button>
                 <span className="text-sm text-muted-foreground">
                   {currentChoiceIndex + 1} / {allChoices.length}
@@ -1102,7 +1102,7 @@ export default function SessionPage() {
                   className={currentChoiceIndex === allChoices.length - 1 ? "invisible" : ""}
                   onClick={() => setCurrentChoiceIndex((i) => i + 1)}
                 >
-                  <Image src="/arrow-small-right.svg" alt="Next" width={20} height={20} />
+                  <Image src="/arrow-small-right.svg" alt="Next" loading="eager" width={20} height={20} />
                 </Button>
               </div>
               {currentChoiceIndex === allChoices.length - 1 && (
@@ -1143,9 +1143,9 @@ export default function SessionPage() {
                       : "bg-gray-100 text-gray-500"
                   }`}>
                     {localVotes[choice.title] === 1
-                      ? <Image src="/thumbs-up.svg" alt="Yes" width={16} height={16} />
+                      ? <Image src="/thumbs-up.svg" alt="Thumbs Up" loading="eager" width={16} height={16} />
                       : localVotes[choice.title] === 0
-                      ? <Image src="/thumbs-down.svg" alt="No" width={16} height={16} />
+                      ? <Image src="/thumbs-down.svg" alt="Thumbs Down" loading="eager" width={16} height={16} />
                       : "—"}
                   </span>
                 </li>
@@ -1269,7 +1269,7 @@ export default function SessionPage() {
                   setEditingChoiceTitle(null);
                 }}
               >
-                <Image src="/thumbs-down.svg" alt="No" width={20} height={20} />
+                <Image src="/thumbs-down.svg" alt="Thumbs Down" loading="eager" width={20} height={20} />
               </Button>
               <Button
                 className="bg-green-600 hover:bg-green-700"
@@ -1278,7 +1278,7 @@ export default function SessionPage() {
                   setEditingChoiceTitle(null);
                 }}
               >
-                <Image src="/thumbs-up.svg" alt="Yes" width={20} height={20} />
+                <Image src="/thumbs-up.svg" alt="Thumbs Up" loading="eager" width={20} height={20} />
               </Button>
             </AlertDialogFooter>
           </AlertDialogContent>
