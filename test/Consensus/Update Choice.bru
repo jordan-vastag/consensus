@@ -1,0 +1,36 @@
+meta {
+  name: Update Choice
+  type: http
+  seq: 13
+}
+
+put {
+  url: http://{{base-url}}/api/session/:code/member/:name/choice/:title
+  body: json
+  auth: inherit
+}
+
+params:path {
+  code:
+  name: Jordan
+  title: The Matrix
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "title": "The Matrix Reloaded",
+    "integration": "tmdb",
+    "integrationID": "604",
+    "description": "Neo and the rebel leaders estimate they have 72 hours",
+    "rank": 2
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

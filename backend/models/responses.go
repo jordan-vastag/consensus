@@ -1,5 +1,7 @@
 package models
 
+import "time"
+
 type ErrorResponse struct {
 	Error string
 }
@@ -69,4 +71,28 @@ type TMDBSearchResponse struct {
 	Results []TMDBSearchResultResponse `json:"results"`
 	Page    int                        `json:"page"`
 	Total   int                        `json:"total"`
+}
+
+type AddChoiceResponse struct {
+	Msg    string `json:"msg"`
+	Choice Choice `json:"choice"`
+}
+
+type GetChoicesResponse struct {
+	Msg     string   `json:"msg"`
+	Choices []Choice `json:"choices"`
+}
+
+type UpdateChoiceResponse struct {
+	Msg    string `json:"msg"`
+	Choice Choice `json:"choice"`
+}
+
+type GetResultsResponse struct {
+	Msg           string    `json:"msg"`
+	Title         string    `json:"title"`
+	RankedChoices []Choice  `json:"rankedChoices"`
+	VotingMode    string    `json:"votingMode"`
+	Permalink     string    `json:"permalink"`
+	CreatedAt     time.Time `json:"createdAt"`
 }

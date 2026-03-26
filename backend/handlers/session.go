@@ -6,6 +6,7 @@ import (
 	"consensus/websocket"
 	"context"
 	"fmt"
+	"log"
 	"math/rand"
 	"net/http"
 	"strings"
@@ -13,8 +14,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
-
-const REQUEST_TIMEOUT_SECONDS = 5
 
 type SessionHandler struct {
 	repo *repository.SessionRepository
@@ -82,24 +81,18 @@ func (h *SessionHandler) CreateSession(c *gin.Context) {
 		return
 	}
 
-	currentTime := time.Now()
 	host := models.Member{
-		Code:      sessionCode,
-		Name:      req.Name,
-		Host:      true,
-		CreatedAt: currentTime,
-		UpdatedAt: currentTime,
+		Code: sessionCode,
+		Name: req.Name,
+		Host: true,
 	}
-	members := []models.Member{host}
 
 	newSession := models.Session{
-		Code:      sessionCode,
-		Members:   members,
-		Title:     req.Title,
-		Config:    req.Config,
-		CreatedAt: currentTime,
-		UpdatedAt: currentTime,
-		ClosedAt:  time.Time{},
+		Code:    sessionCode,
+		Members: []models.Member{host},
+		Title:   req.Title,
+		Phase:   "lobby",
+		Config:  req.Config,
 	}
 
 	err = h.repo.CreateSession(ctx, &newSession)
@@ -117,7 +110,6 @@ func (h *SessionHandler) CreateSession(c *gin.Context) {
 }
 
 func (h *SessionHandler) JoinSession(c *gin.Context) {
-	// TODO: ensure session phase is 'lobby'
 	var req models.JoinSessionRequest
 	code := strings.ToLower(c.Param("code"))
 
@@ -145,6 +137,13 @@ func (h *SessionHandler) JoinSession(c *gin.Context) {
 		return
 	}
 
+	if session.Phase != "" && session.Phase != "lobby" {
+		c.JSON(http.StatusForbidden, models.ErrorResponse{
+			Error: "Session is no longer accepting new members",
+		})
+		return
+	}
+
 	for _, member := range session.Members {
 		if member.Name == req.Name {
 			c.JSON(http.StatusConflict, models.ErrorResponse{
@@ -154,13 +153,10 @@ func (h *SessionHandler) JoinSession(c *gin.Context) {
 		}
 	}
 
-	currentTime := time.Now()
 	joinee := models.Member{
-		Code:      code,
-		Name:      req.Name,
-		Host:      false,
-		CreatedAt: currentTime,
-		UpdatedAt: currentTime,
+		Code: code,
+		Name: req.Name,
+		Host: false,
 	}
 
 	err = h.repo.AddMemberToSession(ctx, code, joinee)
@@ -233,13 +229,6 @@ func (h *SessionHandler) LeaveSession(c *gin.Context) {
 		return
 	}
 
-	if isHost {
-		c.JSON(http.StatusForbidden, models.ErrorResponse{
-			Error: "Host cannot leave the session",
-		})
-		return
-	}
-
 	err = h.repo.RemoveMemberFromSession(ctx, code, req.Name)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
@@ -253,6 +242,23 @@ func (h *SessionHandler) LeaveSession(c *gin.Context) {
 		Type:       websocket.TypeMemberLeft,
 		MemberName: req.Name,
 	})
+
+	// If host left, reassign to another member
+	if isHost {
+		// Re-fetch session to find remaining members
+		updatedSession, fetchErr := h.repo.FindSessionByCode(ctx, code)
+		if fetchErr == nil && len(updatedSession.Members) > 0 {
+			newHost := updatedSession.Members[0].Name
+			if transferErr := h.repo.TransferHost(ctx, code, newHost); transferErr != nil {
+				log.Printf("host transfer on leave: failed for session %s: %v", code, transferErr)
+			} else {
+				h.hub.BroadcastToSession(code, websocket.HostChangedMsg{
+					Type:    websocket.TypeHostChanged,
+					NewHost: newHost,
+				})
+			}
+		}
+	}
 
 	c.JSON(http.StatusOK, models.MsgResponse{
 		Msg: "Left session",
@@ -317,8 +323,8 @@ func (h *SessionHandler) GetSessions(c *gin.Context) {
 }
 
 func (h *SessionHandler) UpdateSessionConfig(c *gin.Context) {
-	// TODO: check if session is active
 	var req models.UpdateSessionConfigRequest
+	code := strings.ToLower(c.Param("code"))
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), REQUEST_TIMEOUT_SECONDS*time.Second)
 	defer cancel()
@@ -327,15 +333,21 @@ func (h *SessionHandler) UpdateSessionConfig(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, models.ErrorResponse{
 			Error: err.Error(),
 		})
+		return
 	}
 
-	oldConfig, err := h.repo.UpdateSessionConfig(ctx, &req.NewConfig)
+	oldConfig, err := h.repo.UpdateSessionConfig(ctx, code, &req.NewConfig)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
 			Error: err.Error(),
 		})
 		return
 	}
+
+	h.hub.BroadcastToSession(code, websocket.ConfigUpdatedMsg{
+		Type:   websocket.TypeConfigUpdated,
+		Config: req.NewConfig,
+	})
 
 	c.JSON(http.StatusOK, models.UpdateSessionConfigResponse{
 		Msg: "Session updated",
@@ -380,6 +392,11 @@ func (h *SessionHandler) CloseSession(c *gin.Context) {
 		})
 		return
 	}
+
+	h.hub.MarkSessionClosed(code)
+	h.hub.BroadcastToSession(code, websocket.SessionClosedMsg{
+		Type: websocket.TypeSessionClosed,
+	})
 
 	c.JSON(http.StatusOK, models.MsgResponse{
 		Msg: "Session closed",
@@ -480,5 +497,192 @@ func (h *SessionHandler) GetMembers(c *gin.Context) {
 	c.JSON(http.StatusOK, models.GetMembersResponse{
 		Msg:     "Members retrieved",
 		Members: members,
+	})
+}
+
+// Choice operations
+
+func (h *SessionHandler) AddMemberChoice(c *gin.Context) {
+	var req models.AddChoiceRequest
+	code := strings.ToLower(c.Param("code"))
+	name := c.Param("name")
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), REQUEST_TIMEOUT_SECONDS*time.Second)
+	defer cancel()
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+
+	choice := models.Choice{
+		MemberName:    name,
+		Title:         req.Title,
+		Integration:   req.Integration,
+		IntegrationID: req.IntegrationID,
+		Description:   req.Description,
+	}
+
+	err := h.repo.AddChoice(ctx, code, choice)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusCreated, models.AddChoiceResponse{
+		Msg:    "Choice added",
+		Choice: choice,
+	})
+}
+
+func (h *SessionHandler) GetMemberChoices(c *gin.Context) {
+	code := strings.ToLower(c.Param("code"))
+	name := c.Param("name")
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), REQUEST_TIMEOUT_SECONDS*time.Second)
+	defer cancel()
+
+	choices, err := h.repo.FindChoicesByMemberName(ctx, code, name)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, models.GetChoicesResponse{
+		Msg:     "Choices retrieved",
+		Choices: choices,
+	})
+}
+
+func (h *SessionHandler) UpdateMemberChoice(c *gin.Context) {
+	var req models.UpdateChoiceRequest
+	code := strings.ToLower(c.Param("code"))
+	name := c.Param("name")
+	title := c.Param("title")
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), REQUEST_TIMEOUT_SECONDS*time.Second)
+	defer cancel()
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+
+	updatedChoice := models.Choice{
+		MemberName:    name,
+		Title:         req.Title,
+		Integration:   req.Integration,
+		IntegrationID: req.IntegrationID,
+		Description:   req.Description,
+	}
+
+	err := h.repo.UpdateChoice(ctx, code, name, title, &updatedChoice)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, models.UpdateChoiceResponse{
+		Msg:    "Choice updated",
+		Choice: updatedChoice,
+	})
+}
+
+func (h *SessionHandler) RemoveMemberChoice(c *gin.Context) {
+	code := strings.ToLower(c.Param("code"))
+	name := c.Param("name")
+	title := c.Param("title")
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), REQUEST_TIMEOUT_SECONDS*time.Second)
+	defer cancel()
+
+	err := h.repo.RemoveChoice(ctx, code, name, title)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, models.MsgResponse{
+		Msg: "Choice removed",
+	})
+}
+
+func (h *SessionHandler) SubmitMemberVotes(c *gin.Context) {
+	code := strings.ToLower(c.Param("code"))
+	name := c.Param("name")
+	var req models.SubmitVotesRequest
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), REQUEST_TIMEOUT_SECONDS*time.Second)
+	defer cancel()
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	for _, v := range req.Votes {
+		vote := models.Vote{MemberName: name, Value: v.Value}
+		if err := h.repo.AddVote(ctx, code, v.ChoiceTitle, vote); err != nil {
+			c.JSON(http.StatusInternalServerError, models.ErrorResponse{Error: err.Error()})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"msg": "Votes submitted"})
+}
+
+func (h *SessionHandler) ClearMemberChoices(c *gin.Context) {
+	code := strings.ToLower(c.Param("code"))
+	name := c.Param("name")
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), REQUEST_TIMEOUT_SECONDS*time.Second)
+	defer cancel()
+
+	err := h.repo.RemoveAllChoicesByMemberName(ctx, code, name)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, models.MsgResponse{
+		Msg: "Choices cleared",
+	})
+}
+
+func (h *SessionHandler) GetResultsByPermalink(c *gin.Context) {
+	permalink := c.Param("id")
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), REQUEST_TIMEOUT_SECONDS*time.Second)
+	defer cancel()
+
+	session, err := h.repo.FindSessionByPermalink(ctx, permalink)
+	if err != nil {
+		c.JSON(http.StatusNotFound, models.ErrorResponse{
+			Error: "Results not found",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, models.GetResultsResponse{
+		Msg:           "Results retrieved",
+		Title:         session.Title,
+		RankedChoices: session.RankedChoices,
+		VotingMode:    session.Config.VotingMode,
+		Permalink:     session.Permalink,
+		CreatedAt:     session.CreatedAt,
 	})
 }

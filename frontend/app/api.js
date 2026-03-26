@@ -42,4 +42,134 @@ async function joinSession(code, name) {
   return response.json();
 }
 
-export { hostSession, getSession, joinSession };
+async function addChoice(code, memberName, title) {
+  const url = `${API_BASE_URL}/session/${code}/member/${encodeURIComponent(memberName)}/choice`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ title }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Response status: ${response.status}`);
+  }
+  return response.json();
+}
+
+async function getMemberChoices(code, memberName) {
+  const url = `${API_BASE_URL}/session/${code}/member/${encodeURIComponent(memberName)}/choice`;
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(`Response status: ${response.status}`);
+  }
+  return response.json();
+}
+
+async function removeChoice(code, memberName, title) {
+  const url = `${API_BASE_URL}/session/${code}/member/${encodeURIComponent(memberName)}/choice/${encodeURIComponent(title)}`;
+  const response = await fetch(url, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Response status: ${response.status}`);
+  }
+  return response.json();
+}
+
+async function clearChoices(code, memberName) {
+  const url = `${API_BASE_URL}/session/${code}/member/${encodeURIComponent(memberName)}/choice`;
+  const response = await fetch(url, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Response status: ${response.status}`);
+  }
+  return response.json();
+}
+
+async function submitVotes(code, memberName, votes) {
+  const url = `${API_BASE_URL}/session/${code}/member/${encodeURIComponent(memberName)}/votes`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ votes }),
+  });
+  if (!response.ok) throw new Error(`Response status: ${response.status}`);
+  return response.json();
+}
+
+async function updateSessionConfig(code, newConfig) {
+  const url = `${API_BASE_URL}/session/${code}/config`;
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ newConfig }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Response status: ${response.status}`);
+  }
+  return response.json();
+}
+
+async function closeSession(code, name) {
+  const url = `${API_BASE_URL}/session/${code}/close`;
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ name }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Response status: ${response.status}`);
+  }
+  return response.json();
+}
+
+async function leaveSession(code, name) {
+  const url = `${API_BASE_URL}/session/${code}/leave`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ name }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Response status: ${response.status}`);
+  }
+  return response.json();
+}
+
+async function getResults(permalinkId) {
+  const url = `${API_BASE_URL}/results/${permalinkId}`;
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Response status: ${response.status}`);
+  return response.json();
+}
+
+export {
+  addChoice,
+  clearChoices,
+  closeSession,
+  getMemberChoices,
+  getResults,
+  getSession,
+  hostSession,
+  joinSession,
+  leaveSession,
+  removeChoice,
+  submitVotes,
+  updateSessionConfig
+};
+

@@ -1,16 +1,25 @@
 package websocket
 
+import "consensus/models"
+
 // Message types
 const (
 	// Outbound (server → client)
-	TypeMemberJoined   = "member_joined"
-	TypeMemberLeft     = "member_left"
-	TypeMemberReady    = "member_ready"
-	TypePhaseChanged   = "phase_changed"
-	TypeConnectedUsers = "connected_users"
+	TypeMemberJoined    = "member_joined"
+	TypeMemberLeft      = "member_left"
+	TypeMemberReady     = "member_ready"
+	TypePhaseChanged    = "phase_changed"
+	TypeConnectedUsers  = "connected_users"
+	TypeMemberSubmitted = "member_submitted"
+	TypeMemberVoted     = "member_voted"
+	TypeSessionClosed   = "session_closed"
+	TypeConfigUpdated   = "config_updated"
+	TypeHostChanged     = "host_changed"
 
 	// Inbound (client → server)
-	TypeSetReady = "set_ready"
+	TypeSetReady      = "set_ready"
+	TypeSubmitChoices = "submit_choices"
+	TypeSubmitVotes   = "submit_votes"
 )
 
 // Outbound messages
@@ -41,6 +50,30 @@ type PhaseChangedMsg struct {
 type ConnectedUsersMsg struct {
 	Type    string   `json:"type"`
 	Members []string `json:"members"` // list of currently connected member names
+}
+
+type MemberSubmittedMsg struct {
+	Type       string `json:"type"`
+	MemberName string `json:"memberName"`
+}
+
+type MemberVotedMsg struct {
+	Type       string `json:"type"`
+	MemberName string `json:"memberName"`
+}
+
+type SessionClosedMsg struct {
+	Type string `json:"type"`
+}
+
+type ConfigUpdatedMsg struct {
+	Type   string              `json:"type"`
+	Config models.SessionConfig `json:"config"`
+}
+
+type HostChangedMsg struct {
+	Type    string `json:"type"`
+	NewHost string `json:"newHost"`
 }
 
 // Inbound messages

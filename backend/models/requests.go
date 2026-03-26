@@ -15,8 +15,7 @@ type LeaveSessionRequest struct {
 }
 
 type UpdateSessionConfigRequest struct {
-	Code      string        `json:"code" binding:"required"`
-	NewConfig SessionConfig `json:"newConfig" bind:"required"`
+	NewConfig SessionConfig `json:"newConfig" binding:"required"`
 }
 
 type CloseSessionRequest struct {
@@ -30,4 +29,29 @@ type UpdateMemberRequest struct {
 type TMDBSearchRequest struct {
 	Query string `form:"q" binding:"required"`
 	Page  int    `form:"page" binding:"min=1"`
+}
+
+type AddChoiceRequest struct {
+	Title         string `json:"title" binding:"required"`
+	Integration   string `json:"integration"`
+	IntegrationID string `json:"integrationID"`
+	Description   string `json:"description"`
+	Rank          int    `json:"rank"`
+}
+
+type VoteValue struct {
+	ChoiceTitle string `json:"choiceTitle" binding:"required"`
+	Value       int    `json:"value" binding:"min=0"`
+}
+
+type SubmitVotesRequest struct {
+	Votes []VoteValue `json:"votes" binding:"required"`
+}
+
+type UpdateChoiceRequest struct {
+	Title         string `json:"title" binding:"required"`
+	Integration   string `json:"integration"`
+	IntegrationID string `json:"integrationID"`
+	Description   string `json:"description"`
+	Rank          int    `json:"rank"`
 }

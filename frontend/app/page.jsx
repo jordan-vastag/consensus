@@ -1,6 +1,7 @@
 "use client";
 
-import { hostSession } from "@/app/api";
+import { getSession, hostSession } from "@/app/api";
+import { Logo } from "@/components/logo";
 import { Button } from "@/ui/button";
 import {
   Card,
@@ -11,22 +12,14 @@ import {
 } from "@/ui/card";
 import { Checkbox } from "@/ui/checkbox";
 import { Input } from "@/ui/input";
-import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSeparator,
-  InputOTPSlot,
-} from "@/ui/input-otp";
 import { Label } from "@/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/ui/radio-group";
 import { Spinner } from "@/ui/spinner";
-import { REGEXP_ONLY_DIGITS_AND_CHARS } from "input-otp";
-import Image from "next/image";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/tabs";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const SESSION_KEY = "consensus_session_data";
-
 function getSavedSession() {
   if (typeof window === "undefined") return null;
   const saved = localStorage.getItem(SESSION_KEY);
@@ -38,10 +31,14 @@ function getSavedSession() {
 export default function Home() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  const [savedSessionData, setSavedSessionData] = useState(getSavedSession);
-  const [hostClicked, setHostClicked] = useState(false);
-  const [joinClicked, setJoinClicked] = useState(false);
+  const [savedSessionData, setSavedSessionData] = useState(null);
+
+  useEffect(() => {
+    setSavedSessionData(getSavedSession());
+  }, []);
+  const [activeTab, setActiveTab] = useState("join");
   const [joinCode, setJoinCode] = useState("");
+  const [joinCodeTouched, setJoinCodeTouched] = useState(false);
   const [errorMessage, setErrorMessage] = useState({
     visible: false,
     text: "Something went wrong. Please reload the page and try again later if the problem persists.",
@@ -56,13 +53,21 @@ export default function Home() {
     grace_period_seconds: 3,
     allow_empty_voters: false,
   });
+  const [touched, setTouched] = useState({
+    name: false,
+    title: false,
+  });
+
+  const nameHasInvalidChars = /[/\\]/.test(sessionConfig.name);
+  const isFormValid =
+    sessionConfig.name.trim() !== "" &&
+    !nameHasInvalidChars &&
+    sessionConfig.title.trim() !== "";
 
   const showRejoinPrompt = savedSessionData !== null;
 
   const handleCancelClick = () => {
     localStorage.removeItem(SESSION_KEY);
-    setHostClicked(false);
-    setJoinClicked(false);
     setSavedSessionData(null);
   };
 
@@ -89,6 +94,8 @@ export default function Home() {
           JSON.stringify({
             name: payload.name,
             code: response.Code,
+            title: payload.title,
+            host: true,
           })
         );
         router.push(`/s/${response.Code}`);
@@ -102,10 +109,28 @@ export default function Home() {
       });
   };
 
-  const handleJoinSessionClick = () => {
-    if (joinCode.length === 6) {
-      router.push(`/s/${joinCode.toLowerCase()}`);
+  const [joinError, setJoinError] = useState("");
+
+  const handleJoinSessionClick = async () => {
+    if (joinCode.length !== 6) return;
+    setJoinError("");
+    setIsLoading(true);
+    try {
+      const response = await getSession(joinCode.toLowerCase());
+      const phase = response.Session.phase || "lobby";
+      const closedAt = new Date(response.Session.closed_at);
+      if (closedAt.getFullYear() > 1) {
+        setJoinError("This session is closed.");
+      } else if (phase !== "lobby") {
+        setJoinError("This session is no longer accepting new members.");
+      } else {
+        router.push(`/s/${joinCode.toLowerCase()}`);
+        return;
+      }
+    } catch {
+      setJoinError("Session not found.");
     }
+    setIsLoading(false);
   };
 
   const handleRejoinClick = () => {
@@ -116,41 +141,66 @@ export default function Home() {
 
   return (
     <div className="flex justify-center items-center h-200 flex-col">
-      <h1 className="self-center text-7xl font-bold">Consensus</h1>
+      <Logo autoPlay />
 
       {!errorMessage.visible && !showRejoinPrompt && (
-        <>
-          {!(hostClicked || joinClicked) && (
-            <>
-              <Image
-                src="/temp-logo.svg"
-                alt="Placeholder Logo"
-                width={500}
-                height={500}
-                loading="eager"
-              />
-              <div>
-                To begin,{" "}
-                <Button onClick={() => setJoinClicked(true)}>Join</Button> or{" "}
-                <Button onClick={() => setHostClicked(true)}>Host</Button> a
-                session
-              </div>
-            </>
-          )}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full max-w-sm mt-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="join">Join</TabsTrigger>
+            <TabsTrigger value="host">Host</TabsTrigger>
+          </TabsList>
 
-          {hostClicked && (
-            <Card className="w-full max-w-sm m-10">
+          <TabsContent value="join">
+            <Card>
+              <CardHeader>
+                <CardTitle>Join a Session</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Input
+                  placeholder="Enter join code"
+                  maxLength={6}
+                  value={joinCode}
+                  onChange={(e) => {
+                    setJoinCode(e.target.value.replace(/[^a-zA-Z0-9]/g, ""));
+                    setJoinCodeTouched(false);
+                  }}
+                  onBlur={() => { if (joinCode.length > 0) setJoinCodeTouched(true); }}
+                />
+                {joinCodeTouched && joinCode.length > 0 && joinCode.length < 6 && (
+                  <p className="text-destructive text-sm mt-1">Join code must be 6 alphanumeric characters</p>
+                )}
+                {joinError && (
+                  <p className="text-destructive text-sm text-center mt-2">{joinError}</p>
+                )}
+                {!isLoading && (
+                  <div className="flex items-center justify-center mt-6">
+                    <Button
+                      className="w-30"
+                      onClick={handleJoinSessionClick}
+                      disabled={joinCode.length !== 6}
+                    >
+                      Join Session
+                    </Button>
+                  </div>
+                )}
+                {isLoading && <div className="flex justify-center mt-4"><Spinner className="size-8" /></div>}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="host">
+            <Card>
               <CardHeader>
                 <CardTitle>Host a Session</CardTitle>
                 <CardDescription>Choose options</CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col space-x-2 gap-4">
                 <div>
-                  <div>Session Title</div>
+                  <div>Session Title <span className="text-destructive">*</span></div>
                   <Input
                     id="session-title"
                     placeholder="Title"
-                    className="w-100% mt-2 mb-4"
+                    className={`w-100% mt-2 ${touched.title && !sessionConfig.title.trim() ? "border-destructive" : ""}`}
                     value={sessionConfig.title}
                     onChange={(e) => {
                       setSessionConfig({
@@ -158,14 +208,18 @@ export default function Home() {
                         title: e.target.value,
                       });
                     }}
+                    onBlur={() => setTouched({ ...touched, title: true })}
                   />
+                  {touched.title && !sessionConfig.title.trim() && (
+                    <p className="text-destructive text-sm mt-1">Title is required</p>
+                  )}
                 </div>
                 <div>
-                  <div>Your Name</div>
+                  <div>Your Name <span className="text-destructive">*</span></div>
                   <Input
                     id="host-name"
                     placeholder="Name"
-                    className="w-100% mt-2 mb-4"
+                    className={`w-100% mt-2 ${(touched.name && !sessionConfig.name.trim()) || nameHasInvalidChars ? "border-destructive" : ""}`}
                     value={sessionConfig.name}
                     onChange={(e) => {
                       setSessionConfig({
@@ -173,7 +227,14 @@ export default function Home() {
                         name: e.target.value,
                       });
                     }}
+                    onBlur={() => setTouched({ ...touched, name: true })}
                   />
+                  {touched.name && !sessionConfig.name.trim() && (
+                    <p className="text-destructive text-sm mt-1">Name is required</p>
+                  )}
+                  {nameHasInvalidChars && (
+                    <p className="text-destructive text-sm mt-1">Name cannot contain / or \</p>
+                  )}
                 </div>
                 <div>Options</div>
                 <div className="flex items-center space-x-2">
@@ -202,8 +263,7 @@ export default function Home() {
                   />
                   <Label>Allow everyone to vote</Label>
                 </div>
-                <br />
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2 mt-4">
                   <Label className="inline-block mb-1">Number of choices</Label>
                   <div className="flex flex-row space-x-4">
                     <div className="flex items-center gap-2">
@@ -255,15 +315,12 @@ export default function Home() {
                   </div>
                 </div>
                 {!isLoading && (
-                  <div className="flex items-center justify-evenly mt-6">
+                  <div className="flex items-center justify-center mt-6">
                     <Button
-                      variant="outline"
-                      className="w-20"
-                      onClick={handleCancelClick}
+                      className="w-30"
+                      onClick={handleHostSessionClick}
+                      disabled={!isFormValid}
                     >
-                      Cancel
-                    </Button>
-                    <Button className="w-30" onClick={handleHostSessionClick}>
                       Host Session
                     </Button>
                   </div>
@@ -271,71 +328,24 @@ export default function Home() {
                 {isLoading && <Spinner className="self-center size-8 mt-4" />}
               </CardContent>
             </Card>
-          )}
-
-          {joinClicked && (
-            <Card className="w-full max-w-sm m-10">
-              <CardHeader>
-                <CardTitle>Join a Session</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-col items-center space-x-2 gap-2">
-                  <InputOTP
-                    maxLength={6}
-                    pattern={REGEXP_ONLY_DIGITS_AND_CHARS}
-                    value={joinCode}
-                    onChange={(code) => setJoinCode(code)}
-                  >
-                    <InputOTPGroup>
-                      <InputOTPSlot index={0} />
-                      <InputOTPSeparator />
-                      <InputOTPSlot index={1} />
-                      <InputOTPSeparator />
-                      <InputOTPSlot index={2} />
-                      <InputOTPSeparator />
-                      <InputOTPSlot index={3} />
-                      <InputOTPSeparator />
-                      <InputOTPSlot index={4} />
-                      <InputOTPSeparator />
-                      <InputOTPSlot index={5} />
-                    </InputOTPGroup>
-                  </InputOTP>
-                  <div className="text-center text-sm">Join code</div>
-                </div>
-                <div className="flex items-center justify-evenly mt-6">
-                  <Button
-                    variant="outline"
-                    className="w-20"
-                    onClick={handleCancelClick}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    className="w-30"
-                    onClick={handleJoinSessionClick}
-                    disabled={joinCode.length !== 6}
-                  >
-                    Join Session
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </>
+          </TabsContent>
+        </Tabs>
       )}
 
       {showRejoinPrompt && savedSessionData && (
         <Card className="w-full max-w-sm m-10">
           <CardHeader>
             <CardTitle>
-              Hi {savedSessionData.name}, looks like you got disconnected!
+              Hi <i>{savedSessionData.name}</i>, looks like you got disconnected!
             </CardTitle>
             <CardDescription>
               Would you like to rejoin your previous session?
             </CardDescription>
-            <CardDescription>
-              Code: {savedSessionData.code.toUpperCase()}
-            </CardDescription>
+            {savedSessionData.title && (
+              <CardDescription className="mt-2 text-md">
+                <b>{savedSessionData.title}</b> (Code: {savedSessionData.code.toUpperCase()})
+              </CardDescription>
+            )}
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-evenly mt-2">

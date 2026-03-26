@@ -1,0 +1,35 @@
+meta {
+  name: Add Choice
+  type: http
+  seq: 11
+}
+
+post {
+  url: http://{{base-url}}/api/session/:code/member/:name/choice
+  body: json
+  auth: inherit
+}
+
+params:path {
+  code:
+  name: Jordan
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "title": "The Matrix",
+    "integration": "tmdb",
+    "integrationID": "603",
+    "description": "A computer hacker learns about the true nature of reality",
+    "rank": 1
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

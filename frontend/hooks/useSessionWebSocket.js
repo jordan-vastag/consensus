@@ -52,7 +52,7 @@ export function useSessionWebSocket(sessionCode, memberName, handlers = {}) {
       ws.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
-          const { onMemberJoined, onMemberLeft, onMemberReady, onPhaseChanged, onConnectedUsers } = handlersRef.current;
+          const { onMemberJoined, onMemberLeft, onMemberReady, onPhaseChanged, onConnectedUsers, onMemberSubmitted, onMemberVoted, onSessionClosed, onConfigUpdated, onHostChanged } = handlersRef.current;
 
           switch (message.type) {
             case "member_joined":
@@ -65,10 +65,29 @@ export function useSessionWebSocket(sessionCode, memberName, handlers = {}) {
               onMemberReady?.(message.memberName, message.ready);
               break;
             case "phase_changed":
-              onPhaseChanged?.(message.phase, message.ready);
+              if (message.phase === "final" && message.permalink) {
+                shouldReconnectRef.current = false;
+              }
+              onPhaseChanged?.(message.phase, message.ready, message.choices, message.permalink);
               break;
             case "connected_users":
               onConnectedUsers?.(message.members);
+              break;
+            case "member_submitted":
+              onMemberSubmitted?.(message.memberName);
+              break;
+            case "member_voted":
+              onMemberVoted?.(message.memberName);
+              break;
+            case "session_closed":
+              shouldReconnectRef.current = false;
+              onSessionClosed?.();
+              break;
+            case "config_updated":
+              onConfigUpdated?.(message.config);
+              break;
+            case "host_changed":
+              onHostChanged?.(message.newHost);
               break;
             default:
               console.log("Unknown message type:", message.type);
@@ -108,6 +127,18 @@ export function useSessionWebSocket(sessionCode, memberName, handlers = {}) {
     }
   }, []);
 
+  const submitChoices = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: "submit_choices" }));
+    }
+  }, []);
+
+  const submitVotes = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: "submit_votes" }));
+    }
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -121,5 +152,7 @@ export function useSessionWebSocket(sessionCode, memberName, handlers = {}) {
     connect,
     disconnect,
     setReady,
+    submitChoices,
+    submitVotes,
   };
 }
