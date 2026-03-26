@@ -25,7 +25,7 @@ export default function RootLayout({
       <head>
         <link
           rel="preload"
-          href="temp-logo.svg"
+          href="circle-diagram.png"
           as="image"
           type="image/svg+xml"
           fetchPriority="high"
