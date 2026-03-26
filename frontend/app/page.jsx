@@ -24,9 +24,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/tabs";
 import { REGEXP_ONLY_DIGITS_AND_CHARS } from "input-otp";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const SESSION_KEY = "consensus_session_data";
+const GIF_DURATION_MS = 2130;
 
 function getSavedSession() {
   if (typeof window === "undefined") return null;
@@ -40,6 +41,24 @@ export default function Home() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [savedSessionData, setSavedSessionData] = useState(null);
+  const [logoSrc, setLogoSrc] = useState("/circle-diagram.png");
+  const gifTimerRef = useRef(null);
+
+  const playGif = useCallback(() => {
+    clearTimeout(gifTimerRef.current);
+    setLogoSrc(`/circle-diagram.gif?t=${Date.now()}`);
+    gifTimerRef.current = setTimeout(() => {
+      setLogoSrc("/circle-diagram.png");
+    }, GIF_DURATION_MS);
+  }, []);
+
+  useEffect(() => {
+    const initialTimer = setTimeout(playGif, 1000);
+    return () => {
+      clearTimeout(initialTimer);
+      clearTimeout(gifTimerRef.current);
+    };
+  }, [playGif]);
 
   useEffect(() => {
     setSavedSessionData(getSavedSession());
@@ -147,12 +166,13 @@ export default function Home() {
   return (
     <div className="flex justify-center items-center h-200 flex-col">
       <div className="flex items-center">
-        <Image
-          src="/temp-logo.svg"
+        <img
+          src={logoSrc}
           alt="Logo"
           width={150}
           height={150}
           loading="eager"
+          onMouseEnter={playGif}
         />
         <h1 className="text-7xl font-bold">Consensus</h1>
       </div>
