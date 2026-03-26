@@ -93,9 +93,14 @@ export default function ResultsPage() {
                   </span>
                   <span>{choice.title}</span>
                 </div>
-                <span className="text-sm font-medium text-green-700">
-                  {choice.rank} {isRankedChoice ? "pts" : "yes"}
-                </span>
+                <div className="flex items-center gap-3">
+                  {choice.memberName && (
+                    <span className="text-xs text-muted-foreground">{choice.memberName}</span>
+                  )}
+                  <span className="text-sm font-medium text-green-700">
+                    {choice.rank} {isRankedChoice ? "pts" : "yes"}
+                  </span>
+                </div>
               </li>
             ))}
           </ol>
