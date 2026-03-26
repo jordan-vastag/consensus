@@ -67,32 +67,43 @@ export default function ResultsPage() {
           <CardTitle className="text-2xl">{results.title}</CardTitle>
           <CardDescription>Results</CardDescription>
           <CardAction>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => {
-                  const text = `Consensus | ${results.title} results\n` +
-                    results.rankedChoices
-                    ?.map((c, i) => `${i + 1}. ${c.title}`)
-                    .join("\n");
-                  navigator.clipboard.writeText(text);
-                  toast("Results copied to clipboard!");
-                }}
-              >
-                <Image src="/copy.svg" alt="Copy" width={20} height={20} />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => {
-                  const url = `${window.location.origin}/results/${permalinkId}`;
-                  navigator.clipboard.writeText(url);
-                  toast("Results link copied to clipboard!");
-                }}
-              >
-                <Image src="/share.svg" alt="Share" width={20} height={20} />
-              </Button>
+            <div className="flex flex-col items-end gap-1">
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => {
+                    const text = `Consensus | ${results.title} results\n` +
+                      results.rankedChoices
+                      ?.map((c, i) => `${i + 1}. ${c.title}`)
+                      .join("\n");
+                    navigator.clipboard.writeText(text);
+                    toast("Results copied to clipboard!");
+                  }}
+                >
+                  <Image src="/copy.svg" alt="Copy" width={20} height={20} />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => {
+                    const url = `${window.location.origin}/results/${permalinkId}`;
+                    navigator.clipboard.writeText(url);
+                    toast("Results link copied to clipboard!");
+                  }}
+                >
+                  <Image src="/share.svg" alt="Share" width={20} height={20} />
+                </Button>
+              </div>
+              {results.createdAt && new Date(results.createdAt).getFullYear() > 1 && (
+                <span className="text-xs text-muted-foreground">
+                  {new Date(results.createdAt).toLocaleDateString(undefined, {
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </span>
+              )}
             </div>
           </CardAction>
         </CardHeader>

@@ -1,5 +1,7 @@
 package models
 
+import "time"
+
 type ErrorResponse struct {
 	Error string
 }
@@ -87,9 +89,10 @@ type UpdateChoiceResponse struct {
 }
 
 type GetResultsResponse struct {
-	Msg           string   `json:"msg"`
-	Title         string   `json:"title"`
-	RankedChoices []Choice `json:"rankedChoices"`
-	VotingMode    string   `json:"votingMode"`
-	Permalink     string   `json:"permalink"`
+	Msg           string    `json:"msg"`
+	Title         string    `json:"title"`
+	RankedChoices []Choice  `json:"rankedChoices"`
+	VotingMode    string    `json:"votingMode"`
+	Permalink     string    `json:"permalink"`
+	CreatedAt     time.Time `json:"createdAt"`
 }

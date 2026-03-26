@@ -661,5 +661,6 @@ func (h *SessionHandler) GetResultsByPermalink(c *gin.Context) {
 		RankedChoices: session.RankedChoices,
 		VotingMode:    session.Config.VotingMode,
 		Permalink:     session.Permalink,
+		CreatedAt:     session.CreatedAt,
 	})
 }
