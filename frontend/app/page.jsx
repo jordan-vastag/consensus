@@ -183,7 +183,7 @@ export default function Home() {
                     </Button>
                   </div>
                 )}
-                {isLoading && <Spinner className="self-center size-8 mt-4" />}
+                {isLoading && <div className="flex justify-center mt-4"><Spinner className="size-8" /></div>}
               </CardContent>
             </Card>
           </TabsContent>
