@@ -1,5 +1,6 @@
 "use client";
 
+import { Logo } from "@/components/logo";
 import { getResults } from "@/app/api";
 import { Button } from "@/ui/button";
 import {
@@ -34,10 +35,7 @@ export default function ResultsPage() {
   if (error) {
     return (
       <div className="flex justify-center items-center h-200 flex-col">
-        <div className="flex items-center">
-          <img src="/circle-diagram.png" alt="Logo" width={150} height={150} />
-          <h1 className="text-7xl font-bold">Consensus</h1>
-        </div>
+        <Logo />
         <Card className="w-full max-w-sm m-10">
           <CardHeader>
             <CardTitle>Uh Oh!</CardTitle>
@@ -54,10 +52,7 @@ export default function ResultsPage() {
   if (!results) {
     return (
       <div className="flex justify-center items-center h-200 flex-col">
-        <div className="flex items-center">
-          <img src="/circle-diagram.png" alt="Logo" width={150} height={150} />
-          <h1 className="text-7xl font-bold">Consensus</h1>
-        </div>
+        <Logo />
         <Spinner className="size-8 mt-8" />
       </div>
     );
@@ -67,10 +62,7 @@ export default function ResultsPage() {
 
   return (
     <div className="flex justify-center items-center h-200 flex-col">
-      <div className="flex items-center">
-        <img src="/circle-diagram.png" alt="Logo" width={150} height={150} />
-        <h1 className="text-7xl font-bold">Consensus</h1>
-      </div>
+      <Logo autoPlay />
       <Card className="w-full max-w-sm m-10">
         <CardHeader>
           <CardTitle className="text-2xl">{results.title}</CardTitle>
