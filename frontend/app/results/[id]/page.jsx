@@ -81,7 +81,7 @@ export default function ResultsPage() {
                     toast("Results copied to clipboard!");
                   }}
                 >
-                  <Image src="/copy.svg" alt="Copy" width={20} height={20} />
+                  <Image src="/copy.svg" alt="Copy" title="Copy Results" width={20} height={20} />
                 </Button>
                 <Button
                   variant="outline"
@@ -92,7 +92,7 @@ export default function ResultsPage() {
                     toast("Results link copied to clipboard!");
                   }}
                 >
-                  <Image src="/share.svg" alt="Share" width={20} height={20} />
+                  <Image src="/share.svg" alt="Share" title="Share Results" width={20} height={20} />
                 </Button>
               </div>
               {results.createdAt && new Date(results.createdAt).getFullYear() > 1 && (

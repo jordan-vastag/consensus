@@ -669,7 +669,7 @@ export default function SessionPage() {
                 }}
                 aria-label="Copy join code"
               >
-                <Image src="/copy.svg" alt="Copy" width={16} height={16} />
+                <Image src="/copy.svg" alt="Copy" title="Copy Join Code" width={16} height={16} />
               </button>
             </CardDescription>
             <CardAction>
@@ -687,7 +687,7 @@ export default function SessionPage() {
                     });
                   }}
                 >
-                  <Image src="/share.svg" alt="Share" width={20} height={20} />
+                  <Image src="/share.svg" alt="Share" title="Share Session" width={20} height={20} />
                 </Button>
                 <Button
                   variant={
