@@ -3,6 +3,8 @@
 ## Functional 
 - Dark mode (WIP)
 
+- Change name setting
+
 - Anonymize votes
 
 - Allow non-choice adders to vote
