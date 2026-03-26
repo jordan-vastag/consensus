@@ -12,6 +12,7 @@ type Hub struct {
 	ready          map[string]map[string]bool  // sessionCode → memberName → ready
 	submitted      map[string]map[string]bool  // sessionCode → memberName → submitted
 	voted          map[string]map[string]bool  // sessionCode → memberName → voted
+	closed         map[string]bool             // sessionCode → closed (skip host transfer)
 	register       chan *Client
 	unregister     chan *Client
 	mu             sync.RWMutex
@@ -29,6 +30,7 @@ func NewHub() *Hub {
 		ready:      make(map[string]map[string]bool),
 		submitted:  make(map[string]map[string]bool),
 		voted:      make(map[string]map[string]bool),
+		closed:     make(map[string]bool),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 	}
@@ -78,7 +80,7 @@ func (h *Hub) Run() {
 					})
 
 					// If host disconnected and there are remaining clients, reassign host
-					if client.host && len(clients) > 0 {
+					if client.host && len(clients) > 0 && !h.closed[sessionCode] {
 						for c := range clients {
 							newHost = c.memberName
 							c.host = true
@@ -101,6 +103,7 @@ func (h *Hub) Run() {
 						delete(h.ready, sessionCode)
 						delete(h.submitted, sessionCode)
 						delete(h.voted, sessionCode)
+						delete(h.closed, sessionCode)
 					}
 				}
 			}
@@ -289,6 +292,13 @@ func (h *Hub) allVotedLocked(sessionCode string) bool {
 	return true
 }
 
+// MarkSessionClosed marks a session as closed so host transfer is skipped on disconnect
+func (h *Hub) MarkSessionClosed(sessionCode string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.closed[sessionCode] = true
+}
+
 // DisconnectSession closes all client connections for a session and cleans up state
 func (h *Hub) DisconnectSession(sessionCode string) {
 	h.mu.Lock()
@@ -308,6 +318,7 @@ func (h *Hub) DisconnectSession(sessionCode string) {
 	delete(h.ready, sessionCode)
 	delete(h.submitted, sessionCode)
 	delete(h.voted, sessionCode)
+	delete(h.closed, sessionCode)
 }
 
 // GetConnectedMembers returns a list of member names currently connected to a session

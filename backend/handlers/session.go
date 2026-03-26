@@ -393,6 +393,7 @@ func (h *SessionHandler) CloseSession(c *gin.Context) {
 		return
 	}
 
+	h.hub.MarkSessionClosed(code)
 	h.hub.BroadcastToSession(code, websocket.SessionClosedMsg{
 		Type: websocket.TypeSessionClosed,
 	})

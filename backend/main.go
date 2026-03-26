@@ -211,6 +211,9 @@ func main() {
 			log.Printf("close: failed for session %s: %v", sessionCode, err)
 		}
 
+		// Mark session closed so host transfer is skipped on disconnect
+		hub.MarkSessionClosed(sessionCode)
+
 		// Broadcast final phase with permalink, then disconnect all clients
 		hub.BroadcastToSession(sessionCode, struct {
 			Type      string          `json:"type"`
