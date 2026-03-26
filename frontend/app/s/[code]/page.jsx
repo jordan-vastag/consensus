@@ -641,7 +641,10 @@ export default function SessionPage() {
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-200 flex-col">
-        <h1 className="self-center text-7xl font-bold">Consensus</h1>
+        <div className="flex items-center">
+          <img src="/circle-diagram.png" alt="Logo" width={150} height={150} />
+          <h1 className="text-7xl font-bold">Consensus</h1>
+        </div>
         <Spinner className="size-8 mt-8" />
       </div>
     );
@@ -650,7 +653,10 @@ export default function SessionPage() {
   if (errorMessage) {
     return (
       <div className="flex justify-center items-center h-200 flex-col">
-        <h1 className="self-center text-7xl font-bold">Consensus</h1>
+        <div className="flex items-center">
+          <img src="/circle-diagram.png" alt="Logo" width={150} height={150} />
+          <h1 className="text-7xl font-bold">Consensus</h1>
+        </div>
         <Card className="w-full max-w-sm m-10">
           <CardHeader>
             <CardTitle>Uh Oh!</CardTitle>
@@ -667,7 +673,10 @@ export default function SessionPage() {
   if (needsToJoin) {
     return (
       <div className="flex justify-center items-center h-200 flex-col">
-        <h1 className="self-center text-7xl font-bold">Consensus</h1>
+        <div className="flex items-center">
+          <img src="/circle-diagram.png" alt="Logo" width={150} height={150} />
+          <h1 className="text-7xl font-bold">Consensus</h1>
+        </div>
         <Card className="w-full max-w-sm m-10">
           <CardHeader>
             <CardTitle>Join Session</CardTitle>
@@ -726,7 +735,10 @@ export default function SessionPage() {
 
   return (
     <div className="flex justify-center items-center h-200 flex-col">
-      <h1 className="self-center text-7xl font-bold">Consensus</h1>
+      <div className="flex items-center">
+        <img src="/circle-diagram.png" alt="Logo" width={150} height={150} />
+        <h1 className="text-7xl font-bold">Consensus</h1>
+      </div>
 
       {sessionState.active && sessionState.phase === "lobby" && (
         <Card className="w-full max-w-sm m-10">
