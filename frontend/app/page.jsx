@@ -1,7 +1,7 @@
 "use client";
 
-import { Logo } from "@/components/logo";
 import { getSession, hostSession } from "@/app/api";
+import { Logo } from "@/components/logo";
 import { Button } from "@/ui/button";
 import {
   Card,
@@ -12,17 +12,10 @@ import {
 } from "@/ui/card";
 import { Checkbox } from "@/ui/checkbox";
 import { Input } from "@/ui/input";
-import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSeparator,
-  InputOTPSlot,
-} from "@/ui/input-otp";
 import { Label } from "@/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/ui/radio-group";
 import { Spinner } from "@/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/tabs";
-import { REGEXP_ONLY_DIGITS_AND_CHARS } from "input-otp";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -39,14 +32,13 @@ export default function Home() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [savedSessionData, setSavedSessionData] = useState(null);
-  useEffect(() => {
-  }, [playGif]);
 
   useEffect(() => {
     setSavedSessionData(getSavedSession());
   }, []);
   const [activeTab, setActiveTab] = useState("join");
   const [joinCode, setJoinCode] = useState("");
+  const [joinCodeTouched, setJoinCodeTouched] = useState(false);
   const [errorMessage, setErrorMessage] = useState({
     visible: false,
     text: "Something went wrong. Please reload the page and try again later if the problem persists.",
@@ -164,29 +156,19 @@ export default function Home() {
                 <CardTitle>Join a Session</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-col items-center space-x-2 gap-2">
-                  <InputOTP
-                    maxLength={6}
-                    pattern={REGEXP_ONLY_DIGITS_AND_CHARS}
-                    value={joinCode}
-                    onChange={(code) => setJoinCode(code)}
-                  >
-                    <InputOTPGroup>
-                      <InputOTPSlot index={0} />
-                      <InputOTPSeparator />
-                      <InputOTPSlot index={1} />
-                      <InputOTPSeparator />
-                      <InputOTPSlot index={2} />
-                      <InputOTPSeparator />
-                      <InputOTPSlot index={3} />
-                      <InputOTPSeparator />
-                      <InputOTPSlot index={4} />
-                      <InputOTPSeparator />
-                      <InputOTPSlot index={5} />
-                    </InputOTPGroup>
-                  </InputOTP>
-                  <div className="text-center text-sm">Join code</div>
-                </div>
+                <Input
+                  placeholder="Enter join code"
+                  maxLength={6}
+                  value={joinCode}
+                  onChange={(e) => {
+                    setJoinCode(e.target.value.replace(/[^a-zA-Z0-9]/g, ""));
+                    setJoinCodeTouched(false);
+                  }}
+                  onBlur={() => { if (joinCode.length > 0) setJoinCodeTouched(true); }}
+                />
+                {joinCodeTouched && joinCode.length > 0 && joinCode.length < 6 && (
+                  <p className="text-destructive text-sm mt-1">Join code must be 6 alphanumeric characters</p>
+                )}
                 {joinError && (
                   <p className="text-destructive text-sm text-center mt-2">{joinError}</p>
                 )}
