@@ -1,6 +1,7 @@
 "use client";
 
 import { getSession, hostSession } from "@/app/api";
+import { DarkModeToggle } from "@/components/dark-mode-toggle";
 import { Logo } from "@/components/logo";
 import { Button } from "@/ui/button";
 import {
@@ -141,6 +142,7 @@ export default function Home() {
 
   return (
     <div className="flex justify-center items-center h-200 flex-col">
+      <DarkModeToggle />
       <Logo autoPlay />
 
       {!errorMessage.visible && !showRejoinPrompt && (

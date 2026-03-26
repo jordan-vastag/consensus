@@ -1,5 +1,6 @@
 "use client";
 
+import { DarkModeToggle } from "@/components/dark-mode-toggle";
 import { Logo } from "@/components/logo";
 import { getResults } from "@/app/api";
 import { Button } from "@/ui/button";
@@ -35,6 +36,7 @@ export default function ResultsPage() {
   if (error) {
     return (
       <div className="flex justify-center items-center h-200 flex-col">
+        <DarkModeToggle />
         <Logo />
         <Card className="w-full max-w-sm m-10">
           <CardHeader>
@@ -52,6 +54,7 @@ export default function ResultsPage() {
   if (!results) {
     return (
       <div className="flex justify-center items-center h-200 flex-col">
+        <DarkModeToggle />
         <Logo />
         <Spinner className="size-8 mt-8" />
       </div>
@@ -62,6 +65,7 @@ export default function ResultsPage() {
 
   return (
     <div className="flex justify-center items-center h-200 flex-col">
+      <DarkModeToggle />
       <Logo autoPlay />
       <Card className="w-full max-w-sm m-10">
         <CardHeader>

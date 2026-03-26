@@ -47,6 +47,7 @@ import { Input } from "@/ui/input";
 import { Label } from "@/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/ui/radio-group";
 import { Spinner } from "@/ui/spinner";
+import { DarkModeToggle } from "@/components/dark-mode-toggle";
 import {
   closestCenter,
   DndContext,
@@ -643,6 +644,7 @@ export default function SessionPage() {
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-200 flex-col">
+        <DarkModeToggle />
         <Logo />
         <Spinner className="size-8 mt-8" />
       </div>
@@ -652,6 +654,7 @@ export default function SessionPage() {
   if (errorMessage) {
     return (
       <div className="flex justify-center items-center h-200 flex-col">
+        <DarkModeToggle />
         <Logo />
         <Card className="w-full max-w-sm m-10">
           <CardHeader>
@@ -669,6 +672,7 @@ export default function SessionPage() {
   if (needsToJoin) {
     return (
       <div className="flex justify-center items-center h-200 flex-col">
+        <DarkModeToggle />
         <Logo />
         <Card className="w-full max-w-sm m-10">
           <CardHeader>
@@ -728,6 +732,7 @@ export default function SessionPage() {
 
   return (
     <div className="flex justify-center items-center h-200 flex-col">
+      <DarkModeToggle />
       <Logo />
 
       {sessionState.active && sessionState.phase === "lobby" && (
