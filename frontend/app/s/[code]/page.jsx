@@ -583,7 +583,7 @@ export default function SessionPage() {
 
         localStorage.setItem(
           SESSION_KEY,
-          JSON.stringify({ name: joinName, code: sessionCode })
+          JSON.stringify({ name: joinName, code: sessionCode, title: response.Session.title })
         );
 
         setSessionState({

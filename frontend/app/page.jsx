@@ -22,7 +22,6 @@ import { RadioGroup, RadioGroupItem } from "@/ui/radio-group";
 import { Spinner } from "@/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/tabs";
 import { REGEXP_ONLY_DIGITS_AND_CHARS } from "input-otp";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -120,6 +119,7 @@ export default function Home() {
           JSON.stringify({
             name: payload.name,
             code: response.Code,
+            title: payload.title,
           })
         );
         router.push(`/s/${response.Code}`);
@@ -381,14 +381,16 @@ export default function Home() {
         <Card className="w-full max-w-sm m-10">
           <CardHeader>
             <CardTitle>
-              Hi {savedSessionData.name}, looks like you got disconnected!
+              Hi <i>{savedSessionData.name}</i>, looks like you got disconnected!
             </CardTitle>
             <CardDescription>
               Would you like to rejoin your previous session?
             </CardDescription>
-            <CardDescription>
-              Code: {savedSessionData.code.toUpperCase()}
-            </CardDescription>
+            {savedSessionData.title && (
+              <CardDescription className="mt-2 text-md">
+                <b>{savedSessionData.title}</b> (Code: {savedSessionData.code.toUpperCase()})
+              </CardDescription>
+            )}
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-evenly mt-2">
