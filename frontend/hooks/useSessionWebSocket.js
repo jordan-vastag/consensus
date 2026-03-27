@@ -52,7 +52,7 @@ export function useSessionWebSocket(sessionCode, memberName, handlers = {}) {
       ws.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
-          const { onMemberJoined, onMemberLeft, onMemberReady, onPhaseChanged, onConnectedUsers, onMemberSubmitted, onMemberVoted, onSessionClosed, onConfigUpdated, onHostChanged } = handlersRef.current;
+          const { onMemberJoined, onMemberLeft, onMemberReady, onPhaseChanged, onConnectedUsers, onMemberSubmitted, onMemberVoted, onSessionClosed, onConfigUpdated, onHostChanged, onForceStartCountdown } = handlersRef.current;
 
           switch (message.type) {
             case "member_joined":
@@ -88,6 +88,9 @@ export function useSessionWebSocket(sessionCode, memberName, handlers = {}) {
               break;
             case "host_changed":
               onHostChanged?.(message.newHost);
+              break;
+            case "force_start_countdown":
+              onForceStartCountdown?.(message.countdown, message.cancelled);
               break;
             default:
               console.log("Unknown message type:", message.type);
@@ -139,6 +142,18 @@ export function useSessionWebSocket(sessionCode, memberName, handlers = {}) {
     }
   }, []);
 
+  const forceStart = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: "force_start" }));
+    }
+  }, []);
+
+  const cancelForceStart = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: "cancel_force_start" }));
+    }
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -154,5 +169,7 @@ export function useSessionWebSocket(sessionCode, memberName, handlers = {}) {
     setReady,
     submitChoices,
     submitVotes,
+    forceStart,
+    cancelForceStart,
   };
 }

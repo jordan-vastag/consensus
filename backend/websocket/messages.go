@@ -14,12 +14,15 @@ const (
 	TypeMemberVoted     = "member_voted"
 	TypeSessionClosed   = "session_closed"
 	TypeConfigUpdated   = "config_updated"
-	TypeHostChanged     = "host_changed"
+	TypeHostChanged          = "host_changed"
+	TypeForceStartCountdown = "force_start_countdown"
 
 	// Inbound (client → server)
-	TypeSetReady      = "set_ready"
-	TypeSubmitChoices = "submit_choices"
-	TypeSubmitVotes   = "submit_votes"
+	TypeSetReady         = "set_ready"
+	TypeSubmitChoices    = "submit_choices"
+	TypeSubmitVotes      = "submit_votes"
+	TypeForceStart       = "force_start"
+	TypeCancelForceStart = "cancel_force_start"
 )
 
 // Outbound messages
@@ -74,6 +77,12 @@ type ConfigUpdatedMsg struct {
 type HostChangedMsg struct {
 	Type    string `json:"type"`
 	NewHost string `json:"newHost"`
+}
+
+type ForceStartCountdownMsg struct {
+	Type      string `json:"type"`
+	Countdown int    `json:"countdown"`
+	Cancelled bool   `json:"cancelled,omitempty"`
 }
 
 // Inbound messages

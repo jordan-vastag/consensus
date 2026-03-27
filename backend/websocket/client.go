@@ -76,6 +76,14 @@ func (c *Client) handleMessage(message []byte) {
 		c.hub.SubmitChoices(c.sessionCode, c.memberName)
 	case TypeSubmitVotes:
 		c.hub.SubmitVotes(c.sessionCode, c.memberName)
+	case TypeForceStart:
+		if c.host {
+			c.hub.ForceStart(c.sessionCode)
+		}
+	case TypeCancelForceStart:
+		if c.host {
+			c.hub.CancelForceStart(c.sessionCode)
+		}
 	default:
 		log.Printf("unknown message type from %s: %s", c.memberName, msg.Type)
 	}

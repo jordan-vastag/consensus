@@ -65,7 +65,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useId, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 
 const SESSION_KEY = "consensus_session_data";
@@ -160,6 +160,7 @@ export default function SessionPage() {
   const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [editConfig, setEditConfig] = useState(null);
   const [closedCountdown, setClosedCountdown] = useState(null);
+  const [forceStartCountdown, setForceStartCountdown] = useState(null);
   const [sessionState, setSessionState] = useState({
     active: false,
     code: "",
@@ -176,6 +177,9 @@ export default function SessionPage() {
       max_choices: 10,
     },
   });
+
+  const sessionStateRef = useRef(sessionState);
+  sessionStateRef.current = sessionState;
 
   const dndId = useId();
   const sensors = useSensors(
@@ -243,6 +247,7 @@ export default function SessionPage() {
       router.push(`/results/${permalink}`);
       return;
     }
+    setForceStartCountdown(null);
     setSessionState((prev) => ({
       ...prev,
       phase,
@@ -298,6 +303,21 @@ export default function SessionPage() {
     setSessionState((prev) => ({ ...prev, config: { ...prev.config, ...config } }));
   }, []);
 
+  const handleForceStartCountdown = useCallback((countdown, cancelled) => {
+    const isHost = sessionStateRef.current.myName === sessionStateRef.current.host;
+    if (cancelled) {
+      setForceStartCountdown(null);
+      if (!isHost) {
+        toast("Host cancelled the start");
+      }
+    } else {
+      if (countdown === 3 && !isHost) {
+        toast("Host is starting the session");
+      }
+      setForceStartCountdown(countdown);
+    }
+  }, []);
+
   const handleHostChanged = useCallback((newHost) => {
     setSessionState((prev) => {
       // Update localStorage with new host status
@@ -328,7 +348,7 @@ export default function SessionPage() {
     return () => clearTimeout(timer);
   }, [closedCountdown, router]);
 
-  const { isConnected, connect, disconnect, setReady, submitChoices, submitVotes: submitVotesWS } = useSessionWebSocket(
+  const { isConnected, connect, disconnect, setReady, submitChoices, submitVotes: submitVotesWS, forceStart, cancelForceStart } = useSessionWebSocket(
     sessionState.code,
     sessionState.myName,
     {
@@ -342,6 +362,7 @@ export default function SessionPage() {
       onSessionClosed: handleSessionClosed,
       onConfigUpdated: handleConfigUpdated,
       onHostChanged: handleHostChanged,
+      onForceStartCountdown: handleForceStartCountdown,
     }
   );
 
@@ -766,6 +787,9 @@ export default function SessionPage() {
                             if (sessionState.ready[sessionState.myName]) {
                               setReady(false);
                             }
+                            if (forceStartCountdown !== null) {
+                              cancelForceStart();
+                            }
                             setIsEditingConfig(true);
                           }}
                         >
@@ -1001,6 +1025,46 @@ export default function SessionPage() {
                 </li>
               ))}
             </ul>
+            {forceStartCountdown !== null && (
+              <div className="text-center text-lg font-semibold mt-4 animate-pulse">
+                Starting in {forceStartCountdown}...
+              </div>
+            )}
+            {sessionState.myName === sessionState.host && (
+              <div className="flex justify-center mt-4">
+                {forceStartCountdown !== null ? (
+                  <Button
+                    variant="outline"
+                    className="w-1/2"
+                    onClick={cancelForceStart}
+                  >
+                    Cancel
+                  </Button>
+                ) : (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="secondary" className="w-1/2">
+                        Start
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Start session?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Not everyone is ready. Are you sure you want to start?
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={forceStart}>
+                          Start
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
