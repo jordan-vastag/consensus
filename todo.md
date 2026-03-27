@@ -5,6 +5,10 @@
 
 - Change name setting
 
+- Restrict length of names
+
+- Restrict length of title
+
 - Anonymize votes
 
 - Allow non-choice adders to vote
@@ -15,7 +19,9 @@
 
 - Share session modal
 
-- Comments on choices
+- Comments on choices 
+    - Restricted length
+    - Viewable on results page
 
 - Choice integrations
 
