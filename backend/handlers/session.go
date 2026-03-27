@@ -451,6 +451,8 @@ func (h *SessionHandler) UpdateMember(c *gin.Context) {
 		return
 	}
 
+	h.hub.UpdateMemberName(code, name, req.NewName)
+
 	c.JSON(http.StatusOK, models.UpdateMemberResponse{
 		Msg:     "Member updated",
 		OldName: name,

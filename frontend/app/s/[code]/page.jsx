@@ -11,6 +11,7 @@ import {
   leaveSession,
   removeChoice,
   submitVotes,
+  updateMember,
   updateSessionConfig,
 } from "@/app/api";
 import { useSessionWebSocket } from "@/hooks/useSessionWebSocket";
@@ -161,6 +162,10 @@ export default function SessionPage() {
   const [editConfig, setEditConfig] = useState(null);
   const [closedCountdown, setClosedCountdown] = useState(null);
   const [forceStartCountdown, setForceStartCountdown] = useState(null);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editNameValue, setEditNameValue] = useState("");
+  const [editNameError, setEditNameError] = useState(null);
+  const [isSavingName, setIsSavingName] = useState(false);
   const [sessionState, setSessionState] = useState({
     active: false,
     code: "",
@@ -318,6 +323,36 @@ export default function SessionPage() {
     }
   }, []);
 
+  const handleMemberNameChanged = useCallback((oldName, newName) => {
+    setSessionState((prev) => {
+      const renameKey = (obj) => {
+        const result = {};
+        for (const [k, v] of Object.entries(obj)) {
+          result[k === oldName ? newName : k] = v;
+        }
+        return result;
+      };
+
+      // Update localStorage if it's our own name
+      if (prev.myName === oldName) {
+        const savedSession = JSON.parse(localStorage.getItem(SESSION_KEY));
+        if (savedSession) {
+          localStorage.setItem(SESSION_KEY, JSON.stringify({ ...savedSession, name: newName }));
+        }
+      }
+
+      return {
+        ...prev,
+        members: prev.members.map((m) => (m === oldName ? newName : m)),
+        ready: renameKey(prev.ready),
+        submitted: renameKey(prev.submitted),
+        voted: renameKey(prev.voted),
+        host: prev.host === oldName ? newName : prev.host,
+        myName: prev.myName === oldName ? newName : prev.myName,
+      };
+    });
+  }, []);
+
   const handleHostChanged = useCallback((newHost) => {
     setSessionState((prev) => {
       // Update localStorage with new host status
@@ -363,12 +398,15 @@ export default function SessionPage() {
       onConfigUpdated: handleConfigUpdated,
       onHostChanged: handleHostChanged,
       onForceStartCountdown: handleForceStartCountdown,
+      onMemberNameChanged: handleMemberNameChanged,
     }
   );
 
-  // Connect WebSocket when session becomes active
+  // Connect WebSocket when session becomes active (not on name changes — server handles renames in-place)
+  const hasConnectedRef = useRef(false);
   useEffect(() => {
-    if (sessionState.active && sessionState.code && sessionState.myName) {
+    if (sessionState.active && sessionState.code && sessionState.myName && !hasConnectedRef.current) {
+      hasConnectedRef.current = true;
       connect();
     }
   }, [sessionState.active, sessionState.code, sessionState.myName, connect]);
@@ -756,7 +794,7 @@ export default function SessionPage() {
           <CardHeader>
             <CardTitle className="text-2xl flex items-center gap-2">
               {sessionState.title}
-              <Dialog onOpenChange={(open) => { if (!open) { setIsEditingConfig(false); setEditConfig(null); } }}>
+              <Dialog onOpenChange={(open) => { if (!open) { setIsEditingConfig(false); setEditConfig(null); setIsEditingName(false); setEditNameValue(""); setEditNameError(null); } }}>
                 <DialogTrigger asChild>
                   <button
                     className="cursor-pointer opacity-60 hover:opacity-100 transition-opacity"
@@ -770,6 +808,84 @@ export default function SessionPage() {
                     <DialogTitle>Settings</DialogTitle>
                   </DialogHeader>
                   <div className="pt-2 flex flex-col gap-4">
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2">
+                        <div className="text-sm font-medium">Display Name</div>
+                        {!isEditingName && (
+                          <button
+                            className="cursor-pointer opacity-60 hover:opacity-100 transition-opacity"
+                            aria-label="Edit display name"
+                            onClick={() => {
+                              if (forceStartCountdown !== null) {
+                                if (sessionState.myName === sessionState.host) {
+                                  cancelForceStart();
+                                } else {
+                                  return;
+                                }
+                              }
+                              setEditNameValue(sessionState.myName);
+                              setEditNameError(null);
+                              setIsEditingName(true);
+                            }}
+                            disabled={forceStartCountdown !== null && sessionState.myName !== sessionState.host}
+                          >
+                            <Image src="/edit.svg" alt="Edit" title="Edit" width={16} height={16} className={forceStartCountdown !== null && sessionState.myName !== sessionState.host ? "opacity-30" : ""} />
+                          </button>
+                        )}
+                      </div>
+                      {!isEditingName ? (
+                        <div className="text-sm text-muted-foreground">{sessionState.myName}</div>
+                      ) : (
+                        <div className="flex flex-col gap-2">
+                          <Input
+                            value={editNameValue}
+                            onChange={(e) => {
+                              setEditNameValue(e.target.value);
+                              setEditNameError(null);
+                            }}
+                            placeholder="Enter new name"
+                          />
+                          {editNameError && (
+                            <p className="text-sm text-destructive">{editNameError}</p>
+                          )}
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              className="flex-1"
+                              onClick={() => { setIsEditingName(false); setEditNameValue(""); setEditNameError(null); }}
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              className="flex-1"
+                              disabled={isSavingName || !editNameValue.trim() || editNameValue.trim() === sessionState.myName}
+                              onClick={async () => {
+                                const trimmed = editNameValue.trim();
+                                if (!trimmed || trimmed === sessionState.myName) return;
+                                setIsSavingName(true);
+                                try {
+                                  await updateMember(sessionState.code, sessionState.myName, trimmed);
+                                  setIsEditingName(false);
+                                  setEditNameValue("");
+                                  setEditNameError(null);
+                                  toast.success("Name updated");
+                                } catch (e) {
+                                  if (e.message.includes("409")) {
+                                    setEditNameError("Name already taken");
+                                  } else {
+                                    toast.error("Failed to update name");
+                                  }
+                                }
+                                setIsSavingName(false);
+                              }}
+                            >
+                              {isSavingName ? <Spinner className="size-4" /> : "Save"}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <hr />
                     <div className="flex items-center gap-2">
                       <div className="text-sm font-medium">Session Options</div>
                       {sessionState.myName === sessionState.host && !isEditingConfig && (

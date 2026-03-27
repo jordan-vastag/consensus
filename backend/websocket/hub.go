@@ -410,6 +410,54 @@ func (h *Hub) CancelForceStart(sessionCode string) {
 	}
 }
 
+// UpdateMemberName atomically renames a member across the client and all hub tracking maps,
+// then broadcasts the change and an updated connected users list to the session.
+func (h *Hub) UpdateMemberName(sessionCode, oldName, newName string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	// Update the client's memberName
+	if clients, ok := h.sessions[sessionCode]; ok {
+		for client := range clients {
+			if client.memberName == oldName {
+				client.memberName = newName
+				break
+			}
+		}
+	}
+
+	// Update ready map
+	if readyMap, ok := h.ready[sessionCode]; ok {
+		if val, exists := readyMap[oldName]; exists {
+			delete(readyMap, oldName)
+			readyMap[newName] = val
+		}
+	}
+
+	// Update submitted map
+	if submittedMap, ok := h.submitted[sessionCode]; ok {
+		if val, exists := submittedMap[oldName]; exists {
+			delete(submittedMap, oldName)
+			submittedMap[newName] = val
+		}
+	}
+
+	// Update voted map
+	if votedMap, ok := h.voted[sessionCode]; ok {
+		if val, exists := votedMap[oldName]; exists {
+			delete(votedMap, oldName)
+			votedMap[newName] = val
+		}
+	}
+
+	// Broadcast name change
+	h.broadcastToSessionLocked(sessionCode, MemberNameChangedMsg{
+		Type:    TypeMemberNameChanged,
+		OldName: oldName,
+		NewName: newName,
+	})
+}
+
 // GetConnectedMembers returns a list of member names currently connected to a session
 func (h *Hub) GetConnectedMembers(sessionCode string) []string {
 	h.mu.RLock()

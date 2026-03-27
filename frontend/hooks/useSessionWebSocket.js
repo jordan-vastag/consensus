@@ -12,16 +12,23 @@ export function useSessionWebSocket(sessionCode, memberName, handlers = {}) {
   const handlersRef = useRef(handlers);
   const shouldReconnectRef = useRef(true);
   const connectRef = useRef(null);
+  const memberNameRef = useRef(memberName);
 
   // Keep handlers ref updated
   useEffect(() => {
     handlersRef.current = handlers;
   }, [handlers]);
 
-  const connect = useCallback(() => {
-    if (!sessionCode || !memberName) return;
+  // Keep memberName ref updated (used for reconnection with latest name)
+  useEffect(() => {
+    memberNameRef.current = memberName;
+  }, [memberName]);
 
-    const url = `${WS_BASE_URL}/session/${sessionCode}/ws?name=${encodeURIComponent(memberName)}`;
+  const connect = useCallback(() => {
+    const name = memberNameRef.current;
+    if (!sessionCode || !name) return;
+
+    const url = `${WS_BASE_URL}/session/${sessionCode}/ws?name=${encodeURIComponent(name)}`;
 
     try {
       const ws = new WebSocket(url);
@@ -52,7 +59,7 @@ export function useSessionWebSocket(sessionCode, memberName, handlers = {}) {
       ws.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
-          const { onMemberJoined, onMemberLeft, onMemberReady, onPhaseChanged, onConnectedUsers, onMemberSubmitted, onMemberVoted, onSessionClosed, onConfigUpdated, onHostChanged, onForceStartCountdown } = handlersRef.current;
+          const { onMemberJoined, onMemberLeft, onMemberReady, onPhaseChanged, onConnectedUsers, onMemberSubmitted, onMemberVoted, onSessionClosed, onConfigUpdated, onHostChanged, onForceStartCountdown, onMemberNameChanged } = handlersRef.current;
 
           switch (message.type) {
             case "member_joined":
@@ -92,6 +99,9 @@ export function useSessionWebSocket(sessionCode, memberName, handlers = {}) {
             case "force_start_countdown":
               onForceStartCountdown?.(message.countdown, message.cancelled);
               break;
+            case "member_name_changed":
+              onMemberNameChanged?.(message.oldName, message.newName);
+              break;
             default:
               console.log("Unknown message type:", message.type);
           }
@@ -104,7 +114,7 @@ export function useSessionWebSocket(sessionCode, memberName, handlers = {}) {
     } catch (e) {
       setWebsocketError("Failed to create WebSocket connection");
     }
-  }, [sessionCode, memberName]);
+  }, [sessionCode]);
 
   // Keep connect ref updated for reconnection
   useEffect(() => {

@@ -151,6 +151,22 @@ async function leaveSession(code, name) {
   return response.json();
 }
 
+async function updateMember(code, memberName, newName) {
+  const url = `${API_BASE_URL}/session/${code}/member/${encodeURIComponent(memberName)}`;
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ newName }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Response status: ${response.status}`);
+  }
+  return response.json();
+}
+
 async function getResults(permalinkId) {
   const url = `${API_BASE_URL}/results/${permalinkId}`;
   const response = await fetch(url);
@@ -170,6 +186,7 @@ export {
   leaveSession,
   removeChoice,
   submitVotes,
+  updateMember,
   updateSessionConfig
 };
 

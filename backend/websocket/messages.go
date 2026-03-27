@@ -16,6 +16,7 @@ const (
 	TypeConfigUpdated   = "config_updated"
 	TypeHostChanged          = "host_changed"
 	TypeForceStartCountdown = "force_start_countdown"
+	TypeMemberNameChanged   = "member_name_changed"
 
 	// Inbound (client → server)
 	TypeSetReady         = "set_ready"
@@ -77,6 +78,12 @@ type ConfigUpdatedMsg struct {
 type HostChangedMsg struct {
 	Type    string `json:"type"`
 	NewHost string `json:"newHost"`
+}
+
+type MemberNameChangedMsg struct {
+	Type    string `json:"type"`
+	OldName string `json:"oldName"`
+	NewName string `json:"newName"`
 }
 
 type ForceStartCountdownMsg struct {
