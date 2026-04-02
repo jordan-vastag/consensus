@@ -118,13 +118,26 @@ GET    /api/integrations/tmdb/search?q=&page=     # TMDB search
 - Share button on results page (copies permalink)
 - TMDB search backend endpoint
 
-### Known TODOs (in code)
+### Known TODOs
+- Dark mode (WIP)
+- Restrict length of names and titles (validation)
+- On join session card, show session title & code instead of only the code
+- Cancel button on join should work immediately (not wait for name check request)
+- Anonymize votes option (config exists, not enforced in UI)
+- Allow non-choice adders to vote (config exists, not enforced)
+- Asynchronous mode
+- Responsive UI
+- Share session modal
+- Comments on choices (restricted length, viewable on results page)
+- Choice integrations: TMDB (backend done, frontend not integrated), Map (OpenStreetMaps/Google Maps), Letterboxd, Airbnb
+- Information modal
+- About page
 - Member name URL params should be query params (special char issues)
 - UpdateSessionConfig / CloseSession should validate session is active
 - WebSocket CheckOrigin should restrict to allowed origins
 - Grace period countdown UI not implemented
-- TMDB integration not exposed in frontend choice creation
 - Structured logging and metrics not implemented
+- Deployment config
 
 ## Testing
 
