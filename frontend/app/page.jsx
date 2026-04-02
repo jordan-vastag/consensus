@@ -196,10 +196,14 @@ export default function Home() {
               </CardHeader>
               <CardContent className="flex flex-col space-x-2 gap-4">
                 <div>
-                  <div>Session Title <span className="text-destructive">*</span></div>
+                  <div className="flex justify-between items-center">
+                    <div>Session Title <span className="text-destructive">*</span></div>
+                    <span className={`text-xs ${30 - sessionConfig.title.length <= 5 ? "text-destructive" : "text-muted-foreground"}`}>{30 - sessionConfig.title.length}</span>
+                  </div>
                   <Input
                     id="session-title"
                     placeholder="Title"
+                    maxLength={30}
                     className={`w-100% mt-2 ${touched.title && !sessionConfig.title.trim() ? "border-destructive" : ""}`}
                     value={sessionConfig.title}
                     onChange={(e) => {
@@ -215,10 +219,14 @@ export default function Home() {
                   )}
                 </div>
                 <div>
-                  <div>Your Name <span className="text-destructive">*</span></div>
+                  <div className="flex justify-between items-center">
+                    <div>Your Name <span className="text-destructive">*</span></div>
+                    <span className={`text-xs ${20 - sessionConfig.name.length <= 5 ? "text-destructive" : "text-muted-foreground"}`}>{20 - sessionConfig.name.length}</span>
+                  </div>
                   <Input
                     id="host-name"
                     placeholder="Name"
+                    maxLength={20}
                     className={`w-100% mt-2 ${(touched.name && !sessionConfig.name.trim()) || nameHasInvalidChars ? "border-destructive" : ""}`}
                     value={sessionConfig.name}
                     onChange={(e) => {

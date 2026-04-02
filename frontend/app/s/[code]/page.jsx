@@ -739,8 +739,12 @@ export default function SessionPage() {
           <CardContent>
             <div className="flex flex-col gap-4">
               <div>
+                <div className="flex justify-end mb-1">
+                  <span className={`text-xs ${20 - joinName.length <= 5 ? "text-destructive" : "text-muted-foreground"}`}>{20 - joinName.length}</span>
+                </div>
                 <Input
                   placeholder="Your name"
+                  maxLength={20}
                   value={joinName}
                   onChange={(e) => {
                     setJoinName(e.target.value);
@@ -837,8 +841,12 @@ export default function SessionPage() {
                         <div className="text-sm text-muted-foreground">{sessionState.myName}</div>
                       ) : (
                         <div className="flex flex-col gap-2">
+                          <div className="flex justify-end">
+                            <span className={`text-xs ${20 - editNameValue.length <= 5 ? "text-destructive" : "text-muted-foreground"}`}>{20 - editNameValue.length}</span>
+                          </div>
                           <Input
                             value={editNameValue}
+                            maxLength={20}
                             onChange={(e) => {
                               setEditNameValue(e.target.value);
                               setEditNameError(null);

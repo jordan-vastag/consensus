@@ -73,6 +73,20 @@ func (h *SessionHandler) CreateSession(c *gin.Context) {
 		return
 	}
 
+	if len([]rune(req.Name)) > MAX_NAME_LENGTH {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Error: fmt.Sprintf("Name must be %d characters or fewer", MAX_NAME_LENGTH),
+		})
+		return
+	}
+
+	if len([]rune(req.Title)) > MAX_TITLE_LENGTH {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Error: fmt.Sprintf("Title must be %d characters or fewer", MAX_TITLE_LENGTH),
+		})
+		return
+	}
+
 	sessionCode, err := generateSessionCode(ctx, h.repo)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
@@ -120,6 +134,14 @@ func (h *SessionHandler) JoinSession(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, models.ErrorResponse{
 			Error: err.Error(),
 		})
+		return
+	}
+
+	if len([]rune(req.Name)) > MAX_NAME_LENGTH {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Error: fmt.Sprintf("Name must be %d characters or fewer", MAX_NAME_LENGTH),
+		})
+		return
 	}
 
 	session, err := h.repo.FindSessionByCode(ctx, code)
@@ -415,6 +437,13 @@ func (h *SessionHandler) UpdateMember(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, models.ErrorResponse{
 			Error: err.Error(),
+		})
+		return
+	}
+
+	if len([]rune(req.NewName)) > MAX_NAME_LENGTH {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Error: fmt.Sprintf("Name must be %d characters or fewer", MAX_NAME_LENGTH),
 		})
 		return
 	}
