@@ -1,6 +1,5 @@
 "use client";
 
-import { Logo } from "@/components/logo";
 import {
   addChoice,
   clearChoices,
@@ -14,6 +13,7 @@ import {
   updateMember,
   updateSessionConfig,
 } from "@/app/api";
+import { Logo } from "@/components/logo";
 import { useSessionWebSocket } from "@/hooks/useSessionWebSocket";
 import {
   AlertDialog,
@@ -631,6 +631,7 @@ export default function SessionPage() {
           if (closedAt.getFullYear() > 1) {
             throw new Error("Session is closed");
           }
+          setSessionState((prev) => ({ ...prev, title: response.Session.title }));
           setNeedsToJoin(true);
           setIsLoading(false);
         })
@@ -731,9 +732,10 @@ export default function SessionPage() {
         <Logo />
         <Card className="w-full max-w-sm m-10">
           <CardHeader>
-            <CardTitle>Join Session</CardTitle>
-            <CardDescription>
-              Session code: {sessionCode.toUpperCase()}
+            <CardTitle className="text-2xl">Join Session</CardTitle>
+            <CardDescription className="flex justify-between text-xl">
+                <div>Title: {sessionState.title} </div>
+                <div><i>#{sessionCode.toUpperCase()}</i></div>
             </CardDescription>
           </CardHeader>
           <CardContent>

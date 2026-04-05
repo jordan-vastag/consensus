@@ -3,8 +3,6 @@
 ## Functional 
 - Dark mode (WIP)
 
-- On join session card, show session title & code intead of only the code
-
 - When joining a session, allow cancel button to work immediately instead of waiting for name check request
 
 - Anonymize votes
