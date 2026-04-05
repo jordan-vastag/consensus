@@ -1,42 +1,58 @@
 # TODO
 
-## Functional 
-- Dark mode (WIP)
+Requirements - ordered by most important to least important from top to bottom.
 
-- When joining a session, allow cancel button to work immediately instead of waiting for name check request
+## MVP
 
-- Anonymize votes
+### Functional
 
-- Allow non-choice adders to vote
+- Comments on choices
+  - Restricted length
+  - Viewable on results page
 
-- Asynchronous mode
+- TMDB choice integration
 
 - Responsive UI
 
-- Share session modal
-
-- Comments on choices 
-    - Restricted length
-    - Viewable on results page
-
-- Choice integrations
-
-    - TMDB
-
-    - Map (OpenStreetMaps, Google Maps?) 
-
-    - Letterboxd
-
-    - AirBnb
-
-- Information modal
+- Information / help modal
 
 - About page
 
-## Non-Functional
-
-- Metrics
-
-- Logging
+### Non-Functional
 
 - Deployment config
+- Logging
+
+- Health metrics (Prometheus -> Grafana)
+  - Total requests
+  - Error rate
+  - Saturation
+
+## Future
+
+### Functional
+
+- Asynchronous mode
+  - Opt-in notification when everyone has added choices
+
+- Feedback modal
+
+- Option to anonymize choices
+
+- View votes for each choice on results page
+
+- Dark mode (WIP)
+
+- Option to let people vote without adding choices
+
+- Share session modal
+
+- Choice integrations
+  - Map (OpenStreetMaps, Google Maps?)\
+  - Letterboxd
+  - AirBnb
+
+### Non-Functional
+
+- Usage metrics
+  - Session details
