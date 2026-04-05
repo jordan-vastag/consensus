@@ -732,8 +732,8 @@ export default function SessionPage() {
         <Logo />
         <Card className="w-full max-w-sm m-10">
           <CardHeader>
-            <CardTitle className="text-2xl">Join Session</CardTitle>
-            <CardDescription className="flex justify-between text-xl">
+            <CardTitle className="text-xl">Join Session</CardTitle>
+            <CardDescription className="flex justify-between text-lg">
                 <div>Title: {sessionState.title} </div>
                 <div><i>#{sessionCode.toUpperCase()}</i></div>
             </CardDescription>
