@@ -1592,10 +1592,10 @@ export default function SessionPage() {
 
       {/* Ranked choice voting: sortable list */}
       {sessionState.active && sessionState.phase === "results" && isRankedChoice && (
-        <Card className="w-full max-w-sm m-10">
+        <Card className="w-full max-w-md m-10">
           <CardHeader>
             <CardTitle className="text-2xl">{sessionState.title}</CardTitle>
-            <CardDescription>
+            <CardDescription className="whitespace-nowrap">
               {allChoices.length === 0 ? "Loading..." : "Rank your choices — drag or enter a number"}
             </CardDescription>
             <CardAction><UserBadge name={sessionState.myName} /></CardAction>
