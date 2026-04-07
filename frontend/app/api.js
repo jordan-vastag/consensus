@@ -199,6 +199,17 @@ async function getResults(permalinkId) {
   return response.json();
 }
 
+async function sendUserMessage({ name, email, message }) {
+  const url = `${API_BASE_URL}/user-message`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, email, message }),
+  });
+  if (!response.ok) throw new Error(`Response status: ${response.status}`);
+  return response.json();
+}
+
 export {
   addChoice,
   clearChoices,
@@ -211,6 +222,7 @@ export {
   leaveSession,
   removeChoice,
   searchTMDB,
+  sendUserMessage,
   submitVotes,
   updateChoice,
   updateMember,

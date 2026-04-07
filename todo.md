@@ -6,16 +6,7 @@ Requirements - ordered by most important to least important from top to bottom.
 
 ### Functional
 
-- TMDB choice integration improvements
-  - Add "view details" functionality on results & voting cards
-    - Cast, rating, release year, release language, rating, length, genre
-
 - Responsive UI
-
-- Add burger menu to right of Join/Host toggle
-  - About
-  - Instructions
-  - Past sessions from localStorage
 
 - Swipe left/right action for yes/no voting
 

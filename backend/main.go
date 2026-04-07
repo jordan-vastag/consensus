@@ -258,6 +258,9 @@ func main() {
 
 	router.GET("/api/results/:id", sessionHandler.GetResultsByPermalink)
 
+	contactHandler := handlers.NewContactHandler()
+	router.POST("/api/user-message", contactHandler.SendUserMessage)
+
 	integrationHandler := handlers.NewIntegrationHandler()
 	integrationRoutes := router.Group("/api/integrations")
 	{
