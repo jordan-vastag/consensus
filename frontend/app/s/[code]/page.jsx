@@ -73,6 +73,17 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 
 const SESSION_KEY = "consensus_session_data";
+const PAST_SESSIONS_KEY = "consensus_past_sessions";
+
+function savePastSession({ title, permalink }) {
+  if (typeof window === "undefined" || !permalink) return;
+  try {
+    const existing = JSON.parse(localStorage.getItem(PAST_SESSIONS_KEY) || "[]");
+    const filtered = existing.filter((s) => s.permalink !== permalink);
+    filtered.unshift({ title, permalink, date: new Date().toISOString() });
+    localStorage.setItem(PAST_SESSIONS_KEY, JSON.stringify(filtered.slice(0, 50)));
+  } catch {}
+}
 const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p";
 const tmdbPoster = (path, size = "w92") => (path ? `${TMDB_IMAGE_BASE}/${size}${path}` : null);
 const tmdbTitleWithYear = (title, releaseDate) => {
@@ -284,6 +295,7 @@ export default function SessionPage() {
 
   const handlePhaseChanged = useCallback((phase, readyMap, choices, permalink) => {
     if (phase === "final" && permalink) {
+      savePastSession({ title: sessionStateRef.current.title, permalink });
       localStorage.removeItem(SESSION_KEY);
       router.push(`/results/${permalink}`);
       return;
@@ -481,6 +493,7 @@ export default function SessionPage() {
     getSession(sessionState.code)
       .then((response) => {
         if (response.Session.permalink) {
+          savePastSession({ title: response.Session.title, permalink: response.Session.permalink });
           localStorage.removeItem(SESSION_KEY);
           router.push(`/results/${response.Session.permalink}`);
         }
@@ -664,6 +677,7 @@ export default function SessionPage() {
 
           // If session is finalized, redirect to permalink
           if (phase === "final" && response.Session.permalink) {
+            savePastSession({ title: response.Session.title, permalink: response.Session.permalink });
             localStorage.removeItem(SESSION_KEY);
             router.push(`/results/${response.Session.permalink}`);
             return;

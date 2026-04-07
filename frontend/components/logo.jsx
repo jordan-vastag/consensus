@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 const GIF_DURATION_MS = 2130;
 
-export function Logo({ autoPlay = false }) {
+export function Logo({ autoPlay = false, onClick }) {
   const [src, setSrc] = useState("/circle-diagram.png");
   const timerRef = useRef(null);
 
@@ -28,7 +28,10 @@ export function Logo({ autoPlay = false }) {
   }, [autoPlay, playGif]);
 
   return (
-    <div className="flex items-center">
+    <div
+      className={`flex items-center${onClick ? " cursor-pointer" : ""}`}
+      onClick={onClick}
+    >
       <img
         src={src}
         alt="Logo"

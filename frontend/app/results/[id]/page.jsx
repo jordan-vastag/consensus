@@ -41,7 +41,7 @@ export default function ResultsPage() {
   if (error) {
     return (
       <div className="flex justify-center items-center h-200 flex-col">
-        <Logo />
+        <Logo onClick={() => router.push("/")} />
         <Card className="w-full max-w-sm m-10">
           <CardHeader>
             <CardTitle>Uh Oh!</CardTitle>
@@ -58,7 +58,7 @@ export default function ResultsPage() {
   if (!results) {
     return (
       <div className="flex justify-center items-center h-200 flex-col">
-        <Logo />
+        <Logo onClick={() => router.push("/")} />
         <Spinner className="size-8 mt-8" />
       </div>
     );
@@ -68,7 +68,7 @@ export default function ResultsPage() {
 
   return (
     <div className="flex justify-center items-center h-200 flex-col">
-      <Logo autoPlay />
+      <Logo autoPlay onClick={() => router.push("/")} />
       <Card className="w-full max-w-lg m-10">
         <CardHeader>
           <CardTitle className="text-2xl">{results.title}</CardTitle>

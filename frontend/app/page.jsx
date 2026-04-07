@@ -15,10 +15,12 @@ import { Label } from "@/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/ui/radio-group";
 import { Spinner } from "@/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/tabs";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 const SESSION_KEY = "consensus_session_data";
+const PAST_SESSIONS_KEY = "consensus_past_sessions";
 function getSavedSession() {
   if (typeof window === "undefined") return null;
   const saved = localStorage.getItem(SESSION_KEY);
@@ -26,14 +28,25 @@ function getSavedSession() {
   const parsed = JSON.parse(saved);
   return parsed?.code && parsed?.name ? parsed : null;
 }
+function getPastSessions() {
+  if (typeof window === "undefined") return [];
+  try {
+    return JSON.parse(localStorage.getItem(PAST_SESSIONS_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
 
 export default function Home() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [savedSessionData, setSavedSessionData] = useState(null);
+  const [showPastSessions, setShowPastSessions] = useState(false);
+  const [pastSessions, setPastSessions] = useState([]);
 
   useEffect(() => {
     setSavedSessionData(getSavedSession());
+    setPastSessions(getPastSessions());
   }, []);
   const [activeTab, setActiveTab] = useState("join");
   const [joinCode, setJoinCode] = useState("");
@@ -146,11 +159,70 @@ export default function Home() {
 
       {!errorMessage.visible && !showRejoinPrompt && (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full max-w-sm mt-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="join">Join</TabsTrigger>
-            <TabsTrigger value="host">Host</TabsTrigger>
-          </TabsList>
+          <div className="flex items-center gap-2">
+            {!showPastSessions && (
+              <TabsList className="grid flex-1 grid-cols-2">
+                <TabsTrigger value="join">Join</TabsTrigger>
+                <TabsTrigger value="host">Host</TabsTrigger>
+              </TabsList>
+            )}
+            <button
+              className="cursor-pointer opacity-60 hover:opacity-100 transition-opacity p-2 ml-auto"
+              aria-label={showPastSessions ? "Close" : "Past Sessions"}
+              onClick={() => {
+                setPastSessions(getPastSessions());
+                setShowPastSessions((v) => !v);
+              }}
+            >
+              <Image
+                src={showPastSessions ? "/cross.svg" : "/menu-burger.svg"}
+                alt={showPastSessions ? "Close" : "Past Sessions"}
+                title={showPastSessions ? "Close" : "Past Sessions"}
+                width={20}
+                height={20}
+              />
+            </button>
+          </div>
+          {showPastSessions && (
+            <Card className="mt-2">
+              <CardHeader>
+                <CardTitle>Past Sessions</CardTitle>
+                <CardDescription>Select a session to view results.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {pastSessions.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No past sessions yet.</p>
+                ) : (
+                  <ul className="flex flex-col gap-2 list-disc pl-5">
+                    {pastSessions.map((s) => (
+                      <li key={s.permalink}>
+                        <div
+                          className="group text-left text-sm cursor-pointer w-full flex items-center"
+                          onClick={() => router.push(`/results/${s.permalink}`)}
+                        >
+                          <span className="font-medium group-hover:underline">{s.title || "Untitled"}</span>
+                          <Image
+                            src="/link-alt.svg"
+                            alt="Open"
+                            width={14}
+                            height={14}
+                            className="ml-2 opacity-0 group-hover:opacity-60 transition-opacity"
+                          />
+                          {s.date && (
+                            <span className="text-muted-foreground ml-auto text-xs">
+                              {new Date(s.date).toLocaleDateString()}
+                            </span>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
+          {!showPastSessions && (<>
           <TabsContent value="join">
             <Card>
               <CardHeader>
@@ -361,6 +433,7 @@ export default function Home() {
               </CardContent>
             </Card>
           </TabsContent>
+          </>)}
         </Tabs>
       )}
 
