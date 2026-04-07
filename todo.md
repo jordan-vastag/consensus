@@ -27,8 +27,6 @@ Requirements - ordered by most important to least important from top to bottom.
 - Asynchronous mode
   - Opt-in notification when everyone has added choices
 
-- Feedback modal
-
 - Option to let people vote without adding choices
 
 - Option to anonymize choices
