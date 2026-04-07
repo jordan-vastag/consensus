@@ -10,7 +10,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/ui/card";
-import { Checkbox } from "@/ui/checkbox";
 import { Input } from "@/ui/input";
 import { Label } from "@/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/ui/radio-group";
@@ -48,6 +47,7 @@ export default function Home() {
     title: "",
     anonymity: false,
     voting_mode: "yes_no",
+    integration: "",
     min_choices: 1,
     max_choices: 3,
     grace_period_seconds: 3,
@@ -82,6 +82,7 @@ export default function Home() {
         max_choices: sessionConfig.max_choices,
         grace_period_seconds: sessionConfig.grace_period_seconds,
         allow_empty_voters: sessionConfig.allow_empty_voters,
+        integration: sessionConfig.integration,
       },
     };
 
@@ -179,7 +180,7 @@ export default function Home() {
                       onClick={handleJoinSessionClick}
                       disabled={joinCode.length !== 6}
                     >
-                      Join Session
+                      Join
                     </Button>
                   </div>
                 )}
@@ -245,7 +246,7 @@ export default function Home() {
                   )}
                 </div>
                 <div>Options</div>
-                <div className="flex items-center space-x-2">
+                {/* <div className="flex items-center space-x-2">
                   <Checkbox
                     id="anonymize-votes"
                     checked={sessionConfig.anonymity}
@@ -270,8 +271,8 @@ export default function Home() {
                     }}
                   />
                   <Label>Allow everyone to vote</Label>
-                </div>
-                <div className="flex flex-col gap-2 mt-4">
+                </div> */}
+                <div className="flex flex-col gap-2">
                   <Label className="inline-block mb-1">Number of choices</Label>
                   <div className="flex flex-row space-x-4">
                     <div className="flex items-center gap-2">
@@ -322,6 +323,29 @@ export default function Home() {
                     </RadioGroup>
                   </div>
                 </div>
+                <div className="flex flex-col gap-4 mt-4">
+                  <Label>Choice Style</Label>
+                  <div className="flex flex-row space-x-2 gap-2">
+                    <RadioGroup
+                      value={sessionConfig.integration}
+                      onValueChange={(value) => {
+                        setSessionConfig({
+                          ...sessionConfig,
+                          integration: value,
+                        });
+                      }}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem id="integration-none" value="" />
+                        <Label>Simple (text input)</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem id="integration-tmdb" value="tmdb" />
+                        <Label>Movie (TMDB)</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                </div>
                 {!isLoading && (
                   <div className="flex items-center justify-center mt-6">
                     <Button
@@ -329,7 +353,7 @@ export default function Home() {
                       onClick={handleHostSessionClick}
                       disabled={!isFormValid}
                     >
-                      Host Session
+                      Start
                     </Button>
                   </div>
                 )}

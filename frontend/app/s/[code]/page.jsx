@@ -9,6 +9,7 @@ import {
   joinSession,
   leaveSession,
   removeChoice,
+  searchTMDB,
   submitVotes,
   updateChoice,
   updateMember,
@@ -41,6 +42,7 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -71,6 +73,12 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 
 const SESSION_KEY = "consensus_session_data";
+const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p";
+const tmdbPoster = (path, size = "w92") => (path ? `${TMDB_IMAGE_BASE}/${size}${path}` : null);
+const tmdbTitleWithYear = (title, releaseDate) => {
+  const year = releaseDate ? String(releaseDate).slice(0, 4) : "";
+  return year ? `${title} (${year})` : title;
+};
 
 function UserBadge({ name }) {
   return (
@@ -81,7 +89,7 @@ function UserBadge({ name }) {
   );
 }
 
-function SortableChoiceItem({ id, title, comment, rank, totalChoices, onRankChange }) {
+function SortableChoiceItem({ id, title, comment, rank, totalChoices, onRankChange, integration, posterPath, description, releaseDate }) {
   const {
     attributes,
     listeners,
@@ -119,9 +127,24 @@ function SortableChoiceItem({ id, title, comment, rank, totalChoices, onRankChan
           <circle cx="11" cy="13" r="1.5" />
         </svg>
       </button>
+      {integration === "tmdb" && posterPath && (
+        <img
+          src={tmdbPoster(posterPath, "w92")}
+          alt={title}
+          className="w-12 h-auto rounded shrink-0"
+        />
+      )}
       <div className="flex flex-col flex-1 min-w-0">
-        <span className="truncate">{title}</span>
-        {comment && <span className="text-xs text-muted-foreground whitespace-pre-wrap break-words">{comment}</span>}
+        <span className={integration === "tmdb" ? "text-base font-semibold truncate" : "truncate"}>
+          {integration === "tmdb" ? tmdbTitleWithYear(title, releaseDate) : title}
+        </span>
+        {integration === "tmdb"
+          ? description && (
+              <span className="text-xs text-muted-foreground line-clamp-2">{description}</span>
+            )
+          : comment && (
+              <span className="text-xs text-muted-foreground whitespace-pre-wrap break-words">{comment}</span>
+            )}
       </div>
       <input
         type="text"
@@ -153,6 +176,13 @@ export default function SessionPage() {
   const [allChoices, setAllChoices] = useState([]);
   const [newChoiceTitle, setNewChoiceTitle] = useState("");
   const [newChoiceComment, setNewChoiceComment] = useState("");
+  const [tmdbQuery, setTmdbQuery] = useState("");
+  const [tmdbResults, setTmdbResults] = useState([]);
+  const [tmdbSearching, setTmdbSearching] = useState(false);
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
+  const [detailChoice, setDetailChoice] = useState(null);
+  const [descriptionTruncated, setDescriptionTruncated] = useState(false);
+  const descriptionRef = useRef(null);
   const [localVotes, setLocalVotes] = useState({});
   const [currentChoiceIndex, setCurrentChoiceIndex] = useState(0);
   const [inVoteReview, setInVoteReview] = useState(false);
@@ -498,13 +528,63 @@ export default function SessionPage() {
     }
   };
 
+  useEffect(() => {
+    setDescriptionExpanded(false);
+  }, [currentChoiceIndex]);
+
+  useEffect(() => {
+    const el = descriptionRef.current;
+    if (!el) {
+      setDescriptionTruncated(false);
+      return;
+    }
+    if (descriptionExpanded) return;
+    setDescriptionTruncated(el.scrollHeight > el.clientHeight + 1);
+  }, [currentChoiceIndex, allChoices, descriptionExpanded]);
+
+  useEffect(() => {
+    if (sessionState.config?.integration !== "tmdb") return;
+    const q = tmdbQuery.trim();
+    if (!q) {
+      setTmdbResults([]);
+      return;
+    }
+    setTmdbSearching(true);
+    const handle = setTimeout(() => {
+      searchTMDB(q)
+        .then((res) => setTmdbResults(res.results || []))
+        .catch(() => setTmdbResults([]))
+        .finally(() => setTmdbSearching(false));
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [tmdbQuery, sessionState.config?.integration]);
+
+  const handleAddTmdbChoice = async (movie) => {
+    if (choices.some((c) => c.integrationID === String(movie.id))) {
+      toast.error("Already added");
+      return;
+    }
+    try {
+      const res = await addChoice(sessionState.code, sessionState.myName, {
+        integration: "tmdb",
+        integrationID: String(movie.id),
+      });
+      setChoices((prev) => [...prev, res.choice || res.Choice]);
+      setTmdbQuery("");
+      setTmdbResults([]);
+    } catch (e) {
+      console.error("Failed to add TMDB choice:", e);
+      toast.error("Failed to add choice");
+    }
+  };
+
   const handleAddChoice = async () => {
     if (!newChoiceTitle.trim()) return;
 
     try {
       const trimmedTitle = newChoiceTitle.trim();
       const trimmedComment = newChoiceComment.trim();
-      await addChoice(sessionState.code, sessionState.myName, trimmedTitle, trimmedComment);
+      await addChoice(sessionState.code, sessionState.myName, { title: trimmedTitle, comment: trimmedComment });
       setChoices((prev) => [...prev, { title: trimmedTitle, comment: trimmedComment }]);
       setNewChoiceTitle("");
       setNewChoiceComment("");
@@ -741,7 +821,7 @@ export default function SessionPage() {
         <Logo />
         <Card className="w-full max-w-sm m-10">
           <CardHeader>
-            <CardTitle className="text-xl">Join Session</CardTitle>
+            <CardTitle className="text-xl">Enter Name</CardTitle>
             <CardDescription className="flex justify-between text-lg">
                 <div>Title: {sessionState.title} </div>
                 <div><i>#{sessionCode.toUpperCase()}</i></div>
@@ -918,6 +998,7 @@ export default function SessionPage() {
                               min_choices: sessionState.config?.min_choices || 0,
                               max_choices: sessionState.config?.max_choices || 0,
                               voting_mode: sessionState.config?.voting_mode || "yes_no",
+                              integration: sessionState.config?.integration || "",
                             });
                             if (sessionState.ready[sessionState.myName]) {
                               setReady(false);
@@ -949,6 +1030,10 @@ export default function SessionPage() {
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Voting mode</span>
                           <span>{sessionState.config?.voting_mode === "ranked_choice" ? "Ranked Choice" : "Yes/No"}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Integration</span>
+                          <span>{sessionState.config?.integration === "tmdb" ? "TMDB (movies)" : "None"}</span>
                         </div>
                       </div>
                     ) : (
@@ -1005,6 +1090,22 @@ export default function SessionPage() {
                             <div className="flex items-center space-x-2">
                               <RadioGroupItem id="edit-ranked-choice" value="ranked_choice" />
                               <Label htmlFor="edit-ranked-choice">Ranked Choice</Label>
+                            </div>
+                          </RadioGroup>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <Label>Integration</Label>
+                          <RadioGroup
+                            value={editConfig.integration || ""}
+                            onValueChange={(value) => setEditConfig({ ...editConfig, integration: value })}
+                          >
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem id="edit-integration-none" value="" />
+                              <Label htmlFor="edit-integration-none">None</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem id="edit-integration-tmdb" value="tmdb" />
+                              <Label htmlFor="edit-integration-tmdb">TMDB (movies)</Label>
                             </div>
                           </RadioGroup>
                         </div>
@@ -1226,66 +1327,126 @@ export default function SessionPage() {
             </p>
 
             {/* Add choice input */}
-            <div className="flex flex-col gap-2 mb-4">
-              <Input
-                placeholder="Add an option..."
-                value={newChoiceTitle}
-                onChange={(e) => setNewChoiceTitle(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    handleAddChoice();
-                  }
-                }}
-              />
-              <textarea
-                placeholder="Add a comment (optional)..."
-                value={newChoiceComment}
-                onChange={(e) => setNewChoiceComment(e.target.value)}
-                maxLength={140}
-                rows={2}
-                className="placeholder:text-muted-foreground border-input w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] resize-none md:text-sm"
-              />
-              <div className="flex justify-end">
-                <Button onClick={handleAddChoice} disabled={!newChoiceTitle.trim()}>
-                  Add
-                </Button>
+            {sessionState.config?.integration === "tmdb" ? (
+              <div className="flex flex-col gap-2 mb-4 relative">
+                <Input
+                  placeholder="Search for a movie..."
+                  value={tmdbQuery}
+                  onChange={(e) => setTmdbQuery(e.target.value)}
+                />
+                {tmdbQuery.trim() && (
+                  <div className="border border-input rounded-md max-h-80 overflow-y-auto">
+                    {tmdbSearching && (
+                      <div className="flex justify-center py-4">
+                        <Spinner className="size-4" />
+                      </div>
+                    )}
+                    {!tmdbSearching && tmdbResults.length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center py-3">No results</p>
+                    )}
+                    {!tmdbSearching && tmdbResults.map((movie) => (
+                      <button
+                        key={movie.id}
+                        onClick={() => handleAddTmdbChoice(movie)}
+                        className="flex items-center justify-between gap-2 w-full py-2 px-3 hover:bg-muted cursor-pointer text-left"
+                      >
+                        <span className="text-sm truncate">
+                          {movie.title}
+                          {movie.release_date && (
+                            <span className="text-muted-foreground"> ({movie.release_date.slice(0, 4)})</span>
+                          )}
+                        </span>
+                        {movie.poster_url && movie.metadata?.poster_path && (
+                          <img
+                            src={tmdbPoster(movie.metadata.poster_path, "w92")}
+                            alt=""
+                            className="w-10 h-auto rounded shrink-0"
+                          />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
+            ) : (
+              <div className="flex flex-col gap-2 mb-4">
+                <Input
+                  placeholder="Add an option..."
+                  value={newChoiceTitle}
+                  onChange={(e) => setNewChoiceTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleAddChoice();
+                    }
+                  }}
+                />
+                <textarea
+                  placeholder="Add a comment (optional)..."
+                  value={newChoiceComment}
+                  onChange={(e) => setNewChoiceComment(e.target.value)}
+                  maxLength={140}
+                  rows={2}
+                  className="placeholder:text-muted-foreground border-input w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] resize-none md:text-sm"
+                />
+                <div className="flex justify-end">
+                  <Button onClick={handleAddChoice} disabled={!newChoiceTitle.trim()}>
+                    Add
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {/* Choices list */}
             {choices.length > 0 && (
               <ul className="space-y-2 mb-4">
                 {choices.map((choice) => (
-                  <li
-                    key={choice.title}
-                    className="flex items-center justify-between py-2 px-4 rounded-md bg-muted group"
-                  >
-                    <div className="flex flex-col min-w-0">
-                      <span>{choice.title}</span>
-                      {choice.comment && (
-                        <span className="text-xs text-muted-foreground truncate">{choice.comment}</span>
+                  <li key={choice.title} className="flex items-center gap-2 group">
+                    <div
+                      className={`flex items-center gap-3 py-2 px-4 rounded-md bg-muted flex-1 min-w-0 ${choice.integration === "tmdb" ? "cursor-pointer hover:bg-muted/70" : ""}`}
+                      onClick={choice.integration === "tmdb" ? () => setDetailChoice(choice) : undefined}
+                    >
+                      {choice.integration === "tmdb" && choice.posterPath && (
+                        <img
+                          src={tmdbPoster(choice.posterPath, "w92")}
+                          alt={choice.title}
+                          className="w-12 h-auto rounded shrink-0"
+                        />
+                      )}
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <span className={choice.integration === "tmdb" ? "text-base font-semibold truncate" : ""}>
+                          {choice.integration === "tmdb" ? tmdbTitleWithYear(choice.title, choice.releaseDate) : choice.title}
+                        </span>
+                        {choice.integration === "tmdb"
+                          ? choice.description && (
+                              <span className="text-xs text-muted-foreground line-clamp-2">{choice.description}</span>
+                            )
+                          : choice.comment && (
+                              <span className="text-xs text-muted-foreground truncate">{choice.comment}</span>
+                            )}
+                      </div>
+                      {choice.integration !== "tmdb" && (
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                          <button
+                            onClick={() => {
+                              setEditingListChoiceTitle(choice.title);
+                              setEditingListChoiceValue(choice.title);
+                              setEditingListChoiceComment(choice.comment || "");
+                            }}
+                            className="cursor-pointer text-muted-foreground hover:text-foreground p-1"
+                            aria-label={`Edit ${choice.title}`}
+                          >
+                            <Image src="/edit.svg" alt="Edit" width={20} height={20} className="opacity-70 hover:opacity-100 transition-opacity" />
+                          </button>
+                        </div>
                       )}
                     </div>
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                      <button
-                        onClick={() => {
-                          setEditingListChoiceTitle(choice.title);
-                          setEditingListChoiceValue(choice.title);
-                          setEditingListChoiceComment(choice.comment || "");
-                        }}
-                        className="cursor-pointer text-muted-foreground hover:text-foreground p-1"
-                        aria-label={`Edit ${choice.title}`}
-                      >
-                        <Image src="/edit.svg" alt="Edit" width={20} height={20} className="opacity-70 hover:opacity-100 transition-opacity" />
-                      </button>
-                      <button
-                        onClick={() => handleRemoveChoice(choice.title)}
-                        className="cursor-pointer text-muted-foreground hover:text-destructive p-1"
-                        aria-label={`Remove ${choice.title}`}
-                      >
-                        <Image src="/trash-xmark.svg" alt="Remove" width={20} height={20} className="opacity-70 hover:opacity-100 transition-opacity" />
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => handleRemoveChoice(choice.title)}
+                      className="cursor-pointer text-muted-foreground hover:text-destructive p-1 shrink-0"
+                      aria-label={`Remove ${choice.title}`}
+                    >
+                      <Image src="/trash-xmark.svg" alt="Remove" width={20} height={20} className="opacity-70 hover:opacity-100 transition-opacity" />
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -1438,16 +1599,62 @@ export default function SessionPage() {
             )}
             {allChoices.length > 0 && (
             <div className="flex flex-col items-center gap-6">
-              <div className="flex flex-col items-center gap-1">
-                <p className="text-xl font-semibold text-center px-4">
-                  {allChoices[currentChoiceIndex]?.title}
-                </p>
-                {allChoices[currentChoiceIndex]?.comment && (
-                  <p className="text-sm text-muted-foreground text-center px-4">
-                    {allChoices[currentChoiceIndex].comment}
+              {allChoices[currentChoiceIndex]?.integration === "tmdb" ? (
+                <div className="flex flex-col items-center gap-2">
+                  {allChoices[currentChoiceIndex]?.posterPath && (
+                    <img
+                      src={tmdbPoster(allChoices[currentChoiceIndex].posterPath, "w500")}
+                      alt={allChoices[currentChoiceIndex].title}
+                      onClick={() => setDetailChoice(allChoices[currentChoiceIndex])}
+                      className="max-h-[50vh] w-auto rounded-md shadow-md cursor-pointer"
+                    />
+                  )}
+                  <p className="text-xl font-semibold text-center px-4">
+                    {tmdbTitleWithYear(allChoices[currentChoiceIndex]?.title, allChoices[currentChoiceIndex]?.releaseDate)}
                   </p>
-                )}
-              </div>
+                  <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground px-4">
+                    {allChoices[currentChoiceIndex]?.voteAverage > 0 && (
+                      <span>★ {allChoices[currentChoiceIndex].voteAverage.toFixed(1)}</span>
+                    )}
+                    {allChoices[currentChoiceIndex]?.runtime > 0 && (
+                      <span>{Math.floor(allChoices[currentChoiceIndex].runtime / 60)}h {allChoices[currentChoiceIndex].runtime % 60}m</span>
+                    )}
+                    {allChoices[currentChoiceIndex]?.language && (
+                      <span>{allChoices[currentChoiceIndex].language.toUpperCase()}</span>
+                    )}
+                    {allChoices[currentChoiceIndex]?.genres?.length > 0 && (
+                      <span>{allChoices[currentChoiceIndex].genres.join(", ")}</span>
+                    )}
+                    {allChoices[currentChoiceIndex]?.director && (
+                      <span>Dir. {allChoices[currentChoiceIndex].director}</span>
+                    )}
+                  </div>
+                  {allChoices[currentChoiceIndex]?.description && (() => {
+                    const expandable = descriptionTruncated || descriptionExpanded;
+                    return (
+                      <p
+                        ref={descriptionRef}
+                        onClick={expandable ? () => setDescriptionExpanded((v) => !v) : undefined}
+                        className={`text-sm text-muted-foreground text-center px-4 ${descriptionExpanded ? "" : "line-clamp-4"} ${expandable ? "cursor-pointer hover:text-foreground" : ""}`}
+                        title={expandable ? (descriptionExpanded ? "Click to collapse" : "Click to expand") : undefined}
+                      >
+                        {allChoices[currentChoiceIndex].description}
+                      </p>
+                    );
+                  })()}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-1">
+                  <p className="text-xl font-semibold text-center px-4">
+                    {allChoices[currentChoiceIndex]?.title}
+                  </p>
+                  {allChoices[currentChoiceIndex]?.comment && (
+                    <p className="text-sm text-muted-foreground text-center px-4">
+                      {allChoices[currentChoiceIndex].comment}
+                    </p>
+                  )}
+                </div>
+              )}
               {localVotes[allChoices[currentChoiceIndex]?.title] !== undefined && (
                 <span className={`text-sm font-medium px-3 py-1 rounded-full ${
                   localVotes[allChoices[currentChoiceIndex]?.title] === 1
@@ -1524,7 +1731,7 @@ export default function SessionPage() {
         <Card className="w-full max-w-sm m-10">
           <CardHeader>
             <CardTitle className="text-2xl">{sessionState.title}</CardTitle>
-            <CardDescription>Review your votes</CardDescription>
+            <CardDescription>Review your votes and edit them if needed.</CardDescription>
             <CardAction><UserBadge name={sessionState.myName} /></CardAction>
           </CardHeader>
           <CardContent>
@@ -1532,13 +1739,25 @@ export default function SessionPage() {
               {allChoices.map((choice) => (
                 <li
                   key={choice.title}
-                  className="flex items-center justify-between py-2 px-4 rounded-md bg-muted cursor-pointer hover:bg-muted/80"
+                  className="flex items-center justify-between gap-3 py-2 px-4 rounded-md bg-muted cursor-pointer hover:bg-muted/80"
                   onClick={() => setEditingChoiceTitle(choice.title)}
                 >
-                  <span>
-                    {choice.title}
-                    {localVotes[choice.title] === undefined && <span className="text-red-500 ml-1">*</span>}
-                  </span>
+                  {choice.integration === "tmdb" && choice.posterPath && (
+                    <img
+                      src={tmdbPoster(choice.posterPath, "w92")}
+                      alt={choice.title}
+                      className="w-10 h-auto rounded shrink-0"
+                    />
+                  )}
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <span className={choice.integration === "tmdb" ? "font-semibold truncate" : ""}>
+                      {choice.integration === "tmdb" ? tmdbTitleWithYear(choice.title, choice.releaseDate) : choice.title}
+                      {localVotes[choice.title] === undefined && <span className="text-red-500 ml-1">*</span>}
+                    </span>
+                    {choice.integration === "tmdb" && choice.description && (
+                      <span className="text-xs text-muted-foreground line-clamp-2">{choice.description}</span>
+                    )}
+                  </div>
                   <span className={`text-sm font-medium px-2 py-0.5 rounded-full ${
                     localVotes[choice.title] === 1
                       ? "bg-green-100 text-green-700"
@@ -1616,17 +1835,24 @@ export default function SessionPage() {
                 >
                   <SortableContext items={rankedOrder} strategy={verticalListSortingStrategy}>
                     <ul className="space-y-2 mb-6">
-                      {rankedOrder.map((title, index) => (
-                        <SortableChoiceItem
-                          key={title}
-                          id={title}
-                          title={title}
-                          comment={allChoices.find(c => c.title === title)?.comment}
-                          rank={index + 1}
-                          totalChoices={rankedOrder.length}
-                          onRankChange={(newRank) => handleRankInputChange(title, newRank)}
-                        />
-                      ))}
+                      {rankedOrder.map((title, index) => {
+                        const c = allChoices.find(c => c.title === title);
+                        return (
+                          <SortableChoiceItem
+                            key={title}
+                            id={title}
+                            title={title}
+                            comment={c?.comment}
+                            integration={c?.integration}
+                            posterPath={c?.posterPath}
+                            description={c?.description}
+                            releaseDate={c?.releaseDate}
+                            rank={index + 1}
+                            totalChoices={rankedOrder.length}
+                            onRankChange={(newRank) => handleRankInputChange(title, newRank)}
+                          />
+                        );
+                      })}
                     </ul>
                   </SortableContext>
                 </DndContext>
@@ -1661,7 +1887,12 @@ export default function SessionPage() {
         <AlertDialog open onOpenChange={(open) => { if (!open) setEditingChoiceTitle(null); }}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>{editingChoiceTitle}</AlertDialogTitle>
+              <AlertDialogTitle>
+                {(() => {
+                  const c = allChoices.find((x) => x.title === editingChoiceTitle);
+                  return c?.integration === "tmdb" ? tmdbTitleWithYear(c.title, c.releaseDate) : editingChoiceTitle;
+                })()}
+              </AlertDialogTitle>
               <AlertDialogDescription>Change your vote for this choice.</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -1772,6 +2003,47 @@ export default function SessionPage() {
           </CardContent>
         </Card>
       )}
+
+      <Dialog open={detailChoice !== null} onOpenChange={(open) => { if (!open) setDetailChoice(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {detailChoice?.title}
+              {detailChoice?.releaseDate && (
+                <span className="text-muted-foreground font-normal"> ({detailChoice.releaseDate.slice(0, 4)})</span>
+              )}
+            </DialogTitle>
+            <DialogDescription className="sr-only">Movie details</DialogDescription>
+          </DialogHeader>
+          {detailChoice?.posterPath && (
+            <img
+              src={tmdbPoster(detailChoice.posterPath, "w500")}
+              alt={detailChoice.title}
+              className="w-full h-auto rounded-md"
+            />
+          )}
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+            {detailChoice?.voteAverage > 0 && (
+              <span>★ {detailChoice.voteAverage.toFixed(1)}</span>
+            )}
+            {detailChoice?.runtime > 0 && (
+              <span>{Math.floor(detailChoice.runtime / 60)}h {detailChoice.runtime % 60}m</span>
+            )}
+            {detailChoice?.language && (
+              <span>{detailChoice.language.toUpperCase()}</span>
+            )}
+            {detailChoice?.genres?.length > 0 && (
+              <span>{detailChoice.genres.join(", ")}</span>
+            )}
+            {detailChoice?.director && (
+              <span>Dir. {detailChoice.director}</span>
+            )}
+          </div>
+          {detailChoice?.description && (
+            <p className="text-sm text-muted-foreground">{detailChoice.description}</p>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isRedirecting || closedCountdown !== null}>
         <DialogContent showCloseButton={false}>

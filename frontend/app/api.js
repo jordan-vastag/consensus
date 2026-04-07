@@ -42,16 +42,25 @@ async function joinSession(code, name) {
   return response.json();
 }
 
-async function addChoice(code, memberName, title, comment) {
+async function addChoice(code, memberName, payload) {
   const url = `${API_BASE_URL}/session/${code}/member/${encodeURIComponent(memberName)}/choice`;
   const response = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ title, comment }),
+    body: JSON.stringify(payload),
   });
 
+  if (!response.ok) {
+    throw new Error(`Response status: ${response.status}`);
+  }
+  return response.json();
+}
+
+async function searchTMDB(query, page = 1) {
+  const url = `${API_BASE_URL}/integrations/tmdb/search?q=${encodeURIComponent(query)}&page=${page}`;
+  const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Response status: ${response.status}`);
   }
@@ -201,6 +210,7 @@ export {
   joinSession,
   leaveSession,
   removeChoice,
+  searchTMDB,
   submitVotes,
   updateChoice,
   updateMember,

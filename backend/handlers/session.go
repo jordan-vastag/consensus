@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"consensus/integrations"
 	"consensus/models"
 	"consensus/repository"
 	"consensus/websocket"
@@ -564,8 +565,48 @@ func (h *SessionHandler) AddMemberChoice(c *gin.Context) {
 		Description:   req.Description,
 	}
 
-	err := h.repo.AddChoice(ctx, code, choice)
-	if err != nil {
+	if req.Integration == IntegrationTMDB {
+		if req.IntegrationID == "" {
+			c.JSON(http.StatusBadRequest, models.ErrorResponse{
+				Error: "integrationID is required for TMDB choices",
+			})
+			return
+		}
+		tmdbClient := integrations.NewTMDBClient()
+		movie, err := tmdbClient.GetMovie(req.IntegrationID)
+		if err != nil {
+			c.JSON(http.StatusBadGateway, models.ErrorResponse{
+				Error: fmt.Sprintf("failed to fetch TMDB movie: %s", err.Error()),
+			})
+			return
+		}
+		choice.Title = movie.Title
+		choice.Description = movie.Overview
+		choice.PosterPath = movie.PosterPath
+		choice.ReleaseDate = movie.ReleaseDate
+		choice.VoteAverage = movie.VoteAverage
+		choice.Runtime = movie.Runtime
+		choice.Language = movie.OriginalLanguage
+		genres := make([]string, 0, len(movie.Genres))
+		for _, g := range movie.Genres {
+			genres = append(genres, g.Name)
+		}
+		choice.Genres = genres
+		for _, crew := range movie.Credits.Crew {
+			if crew.Job == "Director" {
+				choice.Director = crew.Name
+				break
+			}
+		}
+		choice.Comment = ""
+	} else if req.Title == "" {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Error: "title is required",
+		})
+		return
+	}
+
+	if err := h.repo.AddChoice(ctx, code, choice); err != nil {
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
 			Error: err.Error(),
 		})
