@@ -6,10 +6,6 @@ Requirements - ordered by most important to least important from top to bottom.
 
 ### Functional
 
-- Comments on choices
-  - Restricted length
-  - Viewable on results page
-
 - TMDB choice integration
 
 - Responsive UI

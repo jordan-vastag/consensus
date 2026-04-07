@@ -42,14 +42,30 @@ async function joinSession(code, name) {
   return response.json();
 }
 
-async function addChoice(code, memberName, title) {
+async function addChoice(code, memberName, title, comment) {
   const url = `${API_BASE_URL}/session/${code}/member/${encodeURIComponent(memberName)}/choice`;
   const response = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ title }),
+    body: JSON.stringify({ title, comment }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Response status: ${response.status}`);
+  }
+  return response.json();
+}
+
+async function updateChoice(code, memberName, oldTitle, title, comment) {
+  const url = `${API_BASE_URL}/session/${code}/member/${encodeURIComponent(memberName)}/choice/${encodeURIComponent(oldTitle)}`;
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ title, comment }),
   });
 
   if (!response.ok) {
@@ -186,6 +202,7 @@ export {
   leaveSession,
   removeChoice,
   submitVotes,
+  updateChoice,
   updateMember,
   updateSessionConfig
 };

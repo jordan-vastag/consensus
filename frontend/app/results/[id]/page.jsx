@@ -24,6 +24,7 @@ export default function ResultsPage() {
 
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
+  const [expandedComments, setExpandedComments] = useState({});
 
   useEffect(() => {
     if (!permalinkId) return;
@@ -63,7 +64,7 @@ export default function ResultsPage() {
   return (
     <div className="flex justify-center items-center h-200 flex-col">
       <Logo autoPlay />
-      <Card className="w-full max-w-sm m-10">
+      <Card className="w-full max-w-lg m-10">
         <CardHeader>
           <CardTitle className="text-2xl">{results.title}</CardTitle>
           <CardDescription>Results</CardDescription>
@@ -113,22 +114,38 @@ export default function ResultsPage() {
             {results.rankedChoices?.map((choice, index) => (
               <li
                 key={`${choice.title}-${index}`}
-                className="flex items-center justify-between py-2 px-4 rounded-md bg-muted"
+                className="flex flex-col rounded-md bg-muted"
               >
-                <div className="flex items-center gap-3">
-                  <span className="text-muted-foreground text-sm w-4">
-                    {index + 1}.
-                  </span>
-                  <span>{choice.title}</span>
+                <div className="flex items-center justify-between py-2 px-4">
+                  <div className="flex items-center gap-3">
+                    <span className="text-muted-foreground text-sm w-4">
+                      {index + 1}.
+                    </span>
+                    <span>{choice.title}</span>
+                    {choice.comment && (
+                      <button
+                        onClick={() => setExpandedComments((prev) => ({ ...prev, [index]: !prev[index] }))}
+                        className="text-muted-foreground hover:text-foreground cursor-pointer"
+                        aria-label={expandedComments[index] ? "Hide comment" : "Show comment"}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {choice.memberName && (
+                      <span className="text-xs text-muted-foreground">{choice.memberName}</span>
+                    )}
+                    <span className="text-sm font-medium text-green-700">
+                      {choice.rank} {isRankedChoice ? "pts" : "yes"}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  {choice.memberName && (
-                    <span className="text-xs text-muted-foreground">{choice.memberName}</span>
-                  )}
-                  <span className="text-sm font-medium text-green-700">
-                    {choice.rank} {isRankedChoice ? "pts" : "yes"}
-                  </span>
-                </div>
+                {expandedComments[index] && choice.comment && (
+                  <p className="text-sm text-muted-foreground px-4 pb-2 ml-7">{choice.comment}</p>
+                )}
               </li>
             ))}
           </ol>

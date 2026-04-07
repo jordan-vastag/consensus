@@ -50,6 +50,7 @@ type Vote struct {
 type Choice struct {
 	MemberName    string    `json:"memberName" bson:"memberName"`
 	Title         string    `json:"title" bson:"title"`
+	Comment       string    `json:"comment" bson:"comment"`
 	Integration   string    `json:"integration" bson:"integration"`
 	IntegrationID string    `json:"integrationID" bson:"integrationID"`
 	Description   string    `json:"description" bson:"description"`

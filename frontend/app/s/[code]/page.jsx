@@ -10,6 +10,7 @@ import {
   leaveSession,
   removeChoice,
   submitVotes,
+  updateChoice,
   updateMember,
   updateSessionConfig,
 } from "@/app/api";
@@ -80,7 +81,7 @@ function UserBadge({ name }) {
   );
 }
 
-function SortableChoiceItem({ id, title, rank, totalChoices, onRankChange }) {
+function SortableChoiceItem({ id, title, comment, rank, totalChoices, onRankChange }) {
   const {
     attributes,
     listeners,
@@ -118,7 +119,10 @@ function SortableChoiceItem({ id, title, rank, totalChoices, onRankChange }) {
           <circle cx="11" cy="13" r="1.5" />
         </svg>
       </button>
-      <span className="flex-1 truncate">{title}</span>
+      <div className="flex flex-col flex-1 min-w-0">
+        <span className="truncate">{title}</span>
+        {comment && <span className="text-xs text-muted-foreground whitespace-pre-wrap break-words">{comment}</span>}
+      </div>
       <input
         type="text"
         inputMode="numeric"
@@ -148,6 +152,7 @@ export default function SessionPage() {
   const [choices, setChoices] = useState([]);
   const [allChoices, setAllChoices] = useState([]);
   const [newChoiceTitle, setNewChoiceTitle] = useState("");
+  const [newChoiceComment, setNewChoiceComment] = useState("");
   const [localVotes, setLocalVotes] = useState({});
   const [currentChoiceIndex, setCurrentChoiceIndex] = useState(0);
   const [inVoteReview, setInVoteReview] = useState(false);
@@ -155,6 +160,7 @@ export default function SessionPage() {
   const [editingChoiceTitle, setEditingChoiceTitle] = useState(null);
   const [editingListChoiceTitle, setEditingListChoiceTitle] = useState(null);
   const [editingListChoiceValue, setEditingListChoiceValue] = useState("");
+  const [editingListChoiceComment, setEditingListChoiceComment] = useState("");
   const [isLeavingSession, setIsLeavingSession] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [isEditingConfig, setIsEditingConfig] = useState(false);
@@ -496,9 +502,12 @@ export default function SessionPage() {
     if (!newChoiceTitle.trim()) return;
 
     try {
-      await addChoice(sessionState.code, sessionState.myName, newChoiceTitle.trim());
-      setChoices((prev) => [...prev, { title: newChoiceTitle.trim() }]);
+      const trimmedTitle = newChoiceTitle.trim();
+      const trimmedComment = newChoiceComment.trim();
+      await addChoice(sessionState.code, sessionState.myName, trimmedTitle, trimmedComment);
+      setChoices((prev) => [...prev, { title: trimmedTitle, comment: trimmedComment }]);
       setNewChoiceTitle("");
+      setNewChoiceComment("");
     } catch (e) {
       console.error("Failed to add choice:", e);
       toast.error("Failed to add choice");
@@ -526,13 +535,13 @@ export default function SessionPage() {
     }
   };
 
-  const handleEditChoice = async (oldTitle, newTitle) => {
-    const trimmed = newTitle.trim();
-    if (!trimmed || trimmed === oldTitle) return;
+  const handleEditChoice = async (oldTitle, newTitle, comment) => {
+    const trimmedTitle = newTitle.trim();
+    const trimmedComment = (comment || "").trim();
+    if (!trimmedTitle) return;
     try {
-      await removeChoice(sessionState.code, sessionState.myName, oldTitle);
-      await addChoice(sessionState.code, sessionState.myName, trimmed);
-      setChoices((prev) => prev.map((c) => c.title === oldTitle ? { ...c, title: trimmed } : c));
+      await updateChoice(sessionState.code, sessionState.myName, oldTitle, trimmedTitle, trimmedComment);
+      setChoices((prev) => prev.map((c) => c.title === oldTitle ? { ...c, title: trimmedTitle, comment: trimmedComment } : c));
     } catch (e) {
       console.error("Failed to edit choice:", e);
       toast.error("Failed to edit choice");
@@ -1217,7 +1226,7 @@ export default function SessionPage() {
             </p>
 
             {/* Add choice input */}
-            <div className="flex gap-2 mb-4">
+            <div className="flex flex-col gap-2 mb-4">
               <Input
                 placeholder="Add an option..."
                 value={newChoiceTitle}
@@ -1228,9 +1237,19 @@ export default function SessionPage() {
                   }
                 }}
               />
-              <Button onClick={handleAddChoice} disabled={!newChoiceTitle.trim()}>
-                Add
-              </Button>
+              <textarea
+                placeholder="Add a comment (optional)..."
+                value={newChoiceComment}
+                onChange={(e) => setNewChoiceComment(e.target.value)}
+                maxLength={140}
+                rows={2}
+                className="placeholder:text-muted-foreground border-input w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] resize-none md:text-sm"
+              />
+              <div className="flex justify-end">
+                <Button onClick={handleAddChoice} disabled={!newChoiceTitle.trim()}>
+                  Add
+                </Button>
+              </div>
             </div>
 
             {/* Choices list */}
@@ -1241,12 +1260,18 @@ export default function SessionPage() {
                     key={choice.title}
                     className="flex items-center justify-between py-2 px-4 rounded-md bg-muted group"
                   >
-                    <span>{choice.title}</span>
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex flex-col min-w-0">
+                      <span>{choice.title}</span>
+                      {choice.comment && (
+                        <span className="text-xs text-muted-foreground truncate">{choice.comment}</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                       <button
                         onClick={() => {
                           setEditingListChoiceTitle(choice.title);
                           setEditingListChoiceValue(choice.title);
+                          setEditingListChoiceComment(choice.comment || "");
                         }}
                         className="cursor-pointer text-muted-foreground hover:text-foreground p-1"
                         aria-label={`Edit ${choice.title}`}
@@ -1413,9 +1438,16 @@ export default function SessionPage() {
             )}
             {allChoices.length > 0 && (
             <div className="flex flex-col items-center gap-6">
-              <p className="text-xl font-semibold text-center px-4">
-                {allChoices[currentChoiceIndex]?.title}
-              </p>
+              <div className="flex flex-col items-center gap-1">
+                <p className="text-xl font-semibold text-center px-4">
+                  {allChoices[currentChoiceIndex]?.title}
+                </p>
+                {allChoices[currentChoiceIndex]?.comment && (
+                  <p className="text-sm text-muted-foreground text-center px-4">
+                    {allChoices[currentChoiceIndex].comment}
+                  </p>
+                )}
+              </div>
               {localVotes[allChoices[currentChoiceIndex]?.title] !== undefined && (
                 <span className={`text-sm font-medium px-3 py-1 rounded-full ${
                   localVotes[allChoices[currentChoiceIndex]?.title] === 1
@@ -1589,6 +1621,7 @@ export default function SessionPage() {
                           key={title}
                           id={title}
                           title={title}
+                          comment={allChoices.find(c => c.title === title)?.comment}
                           rank={index + 1}
                           totalChoices={rankedOrder.length}
                           onRankChange={(newRank) => handleRankInputChange(title, newRank)}
@@ -1663,23 +1696,38 @@ export default function SessionPage() {
             <AlertDialogHeader>
               <AlertDialogTitle>Edit choice</AlertDialogTitle>
             </AlertDialogHeader>
-            <Input
-              value={editingListChoiceValue}
-              onChange={(e) => setEditingListChoiceValue(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleEditChoice(editingListChoiceTitle, editingListChoiceValue);
-                  setEditingListChoiceTitle(null);
-                }
-              }}
-              autoFocus
-            />
+            <div className="flex flex-col gap-2">
+              <Input
+                value={editingListChoiceValue}
+                onChange={(e) => setEditingListChoiceValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleEditChoice(editingListChoiceTitle, editingListChoiceValue, editingListChoiceComment);
+                    setEditingListChoiceTitle(null);
+                  }
+                }}
+                placeholder="Title"
+                autoFocus
+              />
+              <Input
+                value={editingListChoiceComment}
+                onChange={(e) => setEditingListChoiceComment(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleEditChoice(editingListChoiceTitle, editingListChoiceValue, editingListChoiceComment);
+                    setEditingListChoiceTitle(null);
+                  }
+                }}
+                placeholder="Comment (optional)"
+                maxLength={140}
+              />
+            </div>
             <AlertDialogFooter>
               <AlertDialogCancel onClick={() => setEditingListChoiceTitle(null)}>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 disabled={!editingListChoiceValue.trim()}
                 onClick={() => {
-                  handleEditChoice(editingListChoiceTitle, editingListChoiceValue);
+                  handleEditChoice(editingListChoiceTitle, editingListChoiceValue, editingListChoiceComment);
                   setEditingListChoiceTitle(null);
                 }}
               >

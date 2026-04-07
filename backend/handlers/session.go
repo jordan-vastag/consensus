@@ -548,9 +548,17 @@ func (h *SessionHandler) AddMemberChoice(c *gin.Context) {
 		return
 	}
 
+	if len([]rune(req.Comment)) > MAX_COMMENT_LENGTH {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Error: fmt.Sprintf("Comment must be %d characters or fewer", MAX_COMMENT_LENGTH),
+		})
+		return
+	}
+
 	choice := models.Choice{
 		MemberName:    name,
 		Title:         req.Title,
+		Comment:       req.Comment,
 		Integration:   req.Integration,
 		IntegrationID: req.IntegrationID,
 		Description:   req.Description,
@@ -607,9 +615,17 @@ func (h *SessionHandler) UpdateMemberChoice(c *gin.Context) {
 		return
 	}
 
+	if len([]rune(req.Comment)) > MAX_COMMENT_LENGTH {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Error: fmt.Sprintf("Comment must be %d characters or fewer", MAX_COMMENT_LENGTH),
+		})
+		return
+	}
+
 	updatedChoice := models.Choice{
 		MemberName:    name,
 		Title:         req.Title,
+		Comment:       req.Comment,
 		Integration:   req.Integration,
 		IntegrationID: req.IntegrationID,
 		Description:   req.Description,

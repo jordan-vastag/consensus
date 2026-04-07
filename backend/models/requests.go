@@ -33,6 +33,7 @@ type TMDBSearchRequest struct {
 
 type AddChoiceRequest struct {
 	Title         string `json:"title" binding:"required"`
+	Comment       string `json:"comment"`
 	Integration   string `json:"integration"`
 	IntegrationID string `json:"integrationID"`
 	Description   string `json:"description"`
@@ -50,6 +51,7 @@ type SubmitVotesRequest struct {
 
 type UpdateChoiceRequest struct {
 	Title         string `json:"title" binding:"required"`
+	Comment       string `json:"comment"`
 	Integration   string `json:"integration"`
 	IntegrationID string `json:"integrationID"`
 	Description   string `json:"description"`
