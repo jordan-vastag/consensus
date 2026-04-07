@@ -100,7 +100,7 @@ function UserBadge({ name }) {
   );
 }
 
-function SortableChoiceItem({ id, title, comment, rank, totalChoices, onRankChange, integration, posterPath, description, releaseDate }) {
+function SortableChoiceItem({ id, title, comment, rank, totalChoices, onRankChange, integration, posterPath, description, releaseDate, onShowDetails }) {
   const {
     attributes,
     listeners,
@@ -138,24 +138,29 @@ function SortableChoiceItem({ id, title, comment, rank, totalChoices, onRankChan
           <circle cx="11" cy="13" r="1.5" />
         </svg>
       </button>
-      {integration === "tmdb" && posterPath && (
-        <img
-          src={tmdbPoster(posterPath, "w92")}
-          alt={title}
-          className="w-12 h-auto rounded shrink-0"
-        />
-      )}
-      <div className="flex flex-col flex-1 min-w-0">
-        <span className={integration === "tmdb" ? "text-base font-semibold truncate" : "truncate"}>
-          {integration === "tmdb" ? tmdbTitleWithYear(title, releaseDate) : title}
-        </span>
-        {integration === "tmdb"
-          ? description && (
-              <span className="text-xs text-muted-foreground line-clamp-2">{description}</span>
-            )
-          : comment && (
-              <span className="text-xs text-muted-foreground whitespace-pre-wrap break-words">{comment}</span>
-            )}
+      <div
+        className={`flex items-center gap-2 flex-1 min-w-0 ${integration === "tmdb" ? "cursor-pointer" : ""}`}
+        onClick={integration === "tmdb" && onShowDetails ? onShowDetails : undefined}
+      >
+        {integration === "tmdb" && posterPath && (
+          <img
+            src={tmdbPoster(posterPath, "w92")}
+            alt={title}
+            className="w-12 h-auto rounded shrink-0"
+          />
+        )}
+        <div className="flex flex-col flex-1 min-w-0">
+          <span className={integration === "tmdb" ? "text-base font-semibold truncate" : "truncate"}>
+            {integration === "tmdb" ? tmdbTitleWithYear(title, releaseDate) : title}
+          </span>
+          {integration === "tmdb"
+            ? description && (
+                <span className="text-xs text-muted-foreground line-clamp-2">{description}</span>
+              )
+            : comment && (
+                <span className="text-xs text-muted-foreground whitespace-pre-wrap break-words">{comment}</span>
+              )}
+        </div>
       </div>
       <input
         type="text"
@@ -1864,6 +1869,7 @@ export default function SessionPage() {
                             rank={index + 1}
                             totalChoices={rankedOrder.length}
                             onRankChange={(newRank) => handleRankInputChange(title, newRank)}
+                            onShowDetails={() => setDetailChoice(c)}
                           />
                         );
                       })}
