@@ -23,17 +23,34 @@ type TMDBSearchResponse struct {
 	Total   int         `json:"total_results"`
 }
 
+type TMDBGenre struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+type TMDBCrew struct {
+	Name string `json:"name"`
+	Job  string `json:"job"`
+}
+
+type TMDBCredits struct {
+	Crew []TMDBCrew `json:"crew"`
+}
+
 type TMDBMovie struct {
-	ID               int64   `json:"id"`
-	Title            string  `json:"title"`
-	Overview         string  `json:"overview"`
-	PosterPath       string  `json:"poster_path"`
-	ReleaseDate      string  `json:"release_date"`
-	VoteAverage      float64 `json:"vote_average"`
-	Popularity       float64 `json:"popularity"`
-	BackdropPath     string  `json:"backdrop_path"`
-	OriginalLanguage string  `json:"original_language"`
-	GenreIds         []int   `json:"genre_ids"`
+	ID               int64       `json:"id"`
+	Title            string      `json:"title"`
+	Overview         string      `json:"overview"`
+	PosterPath       string      `json:"poster_path"`
+	ReleaseDate      string      `json:"release_date"`
+	VoteAverage      float64     `json:"vote_average"`
+	Popularity       float64     `json:"popularity"`
+	BackdropPath     string      `json:"backdrop_path"`
+	OriginalLanguage string      `json:"original_language"`
+	GenreIds         []int       `json:"genre_ids"`
+	Genres           []TMDBGenre `json:"genres"`
+	Runtime          int         `json:"runtime"`
+	Credits          TMDBCredits `json:"credits"`
 }
 
 type TMDBMetadata struct {
@@ -102,6 +119,41 @@ func (c *TMDBClient) SearchMovies(query string, page int) (*TMDBSearchResponse, 
 	}
 
 	return &searchResp, nil
+}
+
+func (c *TMDBClient) GetMovie(id string) (*TMDBMovie, error) {
+	if id == "" {
+		return nil, fmt.Errorf("movie id cannot be empty")
+	}
+
+	params := url.Values{}
+	params.Add("api_key", c.apiKey)
+	params.Add("append_to_response", "credits")
+
+	reqURL := fmt.Sprintf("%s/movie/%s?%s", c.baseURL, id, params.Encode())
+
+	resp, err := c.client.Get(reqURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch TMDB movie: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("TMDB API returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	var movie TMDBMovie
+	if err := json.Unmarshal(body, &movie); err != nil {
+		return nil, fmt.Errorf("failed to parse TMDB response: %w", err)
+	}
+
+	return &movie, nil
 }
 
 func (c *TMDBClient) MovieToMetadata(movie *TMDBMovie) *TMDBMetadata {

@@ -5,14 +5,16 @@ import (
 	"log"
 	"maps"
 	"sync"
+	"time"
 )
 
 type Hub struct {
-	sessions       map[string]map[*Client]bool // sessionCode → clients
-	ready          map[string]map[string]bool  // sessionCode → memberName → ready
-	submitted      map[string]map[string]bool  // sessionCode → memberName → submitted
-	voted          map[string]map[string]bool  // sessionCode → memberName → voted
-	closed         map[string]bool             // sessionCode → closed (skip host transfer)
+	sessions       map[string]map[*Client]bool   // sessionCode → clients
+	ready          map[string]map[string]bool    // sessionCode → memberName → ready
+	submitted      map[string]map[string]bool    // sessionCode → memberName → submitted
+	voted          map[string]map[string]bool    // sessionCode → memberName → voted
+	closed         map[string]bool               // sessionCode → closed (skip host transfer)
+	forceStartStop map[string]chan struct{}       // sessionCode → cancel channel for force start countdown
 	register       chan *Client
 	unregister     chan *Client
 	mu             sync.RWMutex
@@ -26,13 +28,14 @@ type Hub struct {
 
 func NewHub() *Hub {
 	return &Hub{
-		sessions:   make(map[string]map[*Client]bool),
-		ready:      make(map[string]map[string]bool),
-		submitted:  make(map[string]map[string]bool),
-		voted:      make(map[string]map[string]bool),
-		closed:     make(map[string]bool),
-		register:   make(chan *Client),
-		unregister: make(chan *Client),
+		sessions:       make(map[string]map[*Client]bool),
+		ready:          make(map[string]map[string]bool),
+		submitted:      make(map[string]map[string]bool),
+		voted:          make(map[string]map[string]bool),
+		closed:         make(map[string]bool),
+		forceStartStop: make(map[string]chan struct{}),
+		register:       make(chan *Client),
+		unregister:     make(chan *Client),
 	}
 }
 
@@ -99,6 +102,10 @@ func (h *Hub) Run() {
 
 					// Clean up empty session
 					if len(clients) == 0 {
+						if stop, ok := h.forceStartStop[sessionCode]; ok {
+							close(stop)
+							delete(h.forceStartStop, sessionCode)
+						}
 						delete(h.sessions, sessionCode)
 						delete(h.ready, sessionCode)
 						delete(h.submitted, sessionCode)
@@ -309,6 +316,11 @@ func (h *Hub) DisconnectSession(sessionCode string) {
 		return
 	}
 
+	if stop, ok := h.forceStartStop[sessionCode]; ok {
+		close(stop)
+		delete(h.forceStartStop, sessionCode)
+	}
+
 	for client := range clients {
 		close(client.send)
 		client.conn.Close()
@@ -319,6 +331,131 @@ func (h *Hub) DisconnectSession(sessionCode string) {
 	delete(h.submitted, sessionCode)
 	delete(h.voted, sessionCode)
 	delete(h.closed, sessionCode)
+}
+
+// ForceStart begins a 3-second countdown and transitions to voting when it reaches 0.
+// Only the host should call this.
+func (h *Hub) ForceStart(sessionCode string) {
+	h.mu.Lock()
+
+	// If a countdown is already running, ignore
+	if _, running := h.forceStartStop[sessionCode]; running {
+		h.mu.Unlock()
+		return
+	}
+
+	stop := make(chan struct{})
+	h.forceStartStop[sessionCode] = stop
+
+	// Broadcast initial countdown (3)
+	h.broadcastToSessionLocked(sessionCode, ForceStartCountdownMsg{
+		Type:      TypeForceStartCountdown,
+		Countdown: 3,
+	})
+	h.mu.Unlock()
+
+	go func() {
+		for i := 2; i >= 0; i-- {
+			select {
+			case <-stop:
+				return
+			case <-time.After(1 * time.Second):
+			}
+
+			h.mu.Lock()
+			// Session may have been cleaned up
+			if _, ok := h.sessions[sessionCode]; !ok {
+				delete(h.forceStartStop, sessionCode)
+				h.mu.Unlock()
+				return
+			}
+
+			if i > 0 {
+				h.broadcastToSessionLocked(sessionCode, ForceStartCountdownMsg{
+					Type:      TypeForceStartCountdown,
+					Countdown: i,
+				})
+				h.mu.Unlock()
+			} else {
+				// Countdown complete — transition to voting
+				delete(h.forceStartStop, sessionCode)
+				h.broadcastToSessionLocked(sessionCode, PhaseChangedMsg{
+					Type:  TypePhaseChanged,
+					Phase: "voting",
+					Ready: h.copyReadyMapLocked(sessionCode),
+				})
+				h.mu.Unlock()
+
+				if h.OnAllReady != nil {
+					go h.OnAllReady(sessionCode)
+				}
+			}
+		}
+	}()
+}
+
+// CancelForceStart stops an active force start countdown.
+func (h *Hub) CancelForceStart(sessionCode string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if stop, ok := h.forceStartStop[sessionCode]; ok {
+		close(stop)
+		delete(h.forceStartStop, sessionCode)
+
+		h.broadcastToSessionLocked(sessionCode, ForceStartCountdownMsg{
+			Type:      TypeForceStartCountdown,
+			Cancelled: true,
+		})
+	}
+}
+
+// UpdateMemberName atomically renames a member across the client and all hub tracking maps,
+// then broadcasts the change and an updated connected users list to the session.
+func (h *Hub) UpdateMemberName(sessionCode, oldName, newName string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	// Update the client's memberName
+	if clients, ok := h.sessions[sessionCode]; ok {
+		for client := range clients {
+			if client.memberName == oldName {
+				client.memberName = newName
+				break
+			}
+		}
+	}
+
+	// Update ready map
+	if readyMap, ok := h.ready[sessionCode]; ok {
+		if val, exists := readyMap[oldName]; exists {
+			delete(readyMap, oldName)
+			readyMap[newName] = val
+		}
+	}
+
+	// Update submitted map
+	if submittedMap, ok := h.submitted[sessionCode]; ok {
+		if val, exists := submittedMap[oldName]; exists {
+			delete(submittedMap, oldName)
+			submittedMap[newName] = val
+		}
+	}
+
+	// Update voted map
+	if votedMap, ok := h.voted[sessionCode]; ok {
+		if val, exists := votedMap[oldName]; exists {
+			delete(votedMap, oldName)
+			votedMap[newName] = val
+		}
+	}
+
+	// Broadcast name change
+	h.broadcastToSessionLocked(sessionCode, MemberNameChangedMsg{
+		Type:    TypeMemberNameChanged,
+		OldName: oldName,
+		NewName: newName,
+	})
 }
 
 // GetConnectedMembers returns a list of member names currently connected to a session

@@ -11,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/ui/dialog";
 import { Spinner } from "@/ui/spinner";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
@@ -24,6 +25,11 @@ export default function ResultsPage() {
 
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
+  const [expandedComments, setExpandedComments] = useState({});
+  const [detailChoice, setDetailChoice] = useState(null);
+
+  const tmdbPoster = (path, size = "w92") =>
+    path ? `https://image.tmdb.org/t/p/${size}${path}` : null;
 
   useEffect(() => {
     if (!permalinkId) return;
@@ -35,7 +41,7 @@ export default function ResultsPage() {
   if (error) {
     return (
       <div className="flex justify-center items-center h-200 flex-col">
-        <Logo />
+        <Logo onClick={() => router.push("/")} />
         <Card className="w-full max-w-sm m-10">
           <CardHeader>
             <CardTitle>Uh Oh!</CardTitle>
@@ -52,7 +58,7 @@ export default function ResultsPage() {
   if (!results) {
     return (
       <div className="flex justify-center items-center h-200 flex-col">
-        <Logo />
+        <Logo onClick={() => router.push("/")} />
         <Spinner className="size-8 mt-8" />
       </div>
     );
@@ -62,8 +68,8 @@ export default function ResultsPage() {
 
   return (
     <div className="flex justify-center items-center h-200 flex-col">
-      <Logo autoPlay />
-      <Card className="w-full max-w-sm m-10">
+      <Logo autoPlay onClick={() => router.push("/")} />
+      <Card className="w-full max-w-lg m-10">
         <CardHeader>
           <CardTitle className="text-2xl">{results.title}</CardTitle>
           <CardDescription>Results</CardDescription>
@@ -113,27 +119,98 @@ export default function ResultsPage() {
             {results.rankedChoices?.map((choice, index) => (
               <li
                 key={`${choice.title}-${index}`}
-                className="flex items-center justify-between py-2 px-4 rounded-md bg-muted"
+                className={`flex flex-col rounded-md bg-muted ${choice.integration === "tmdb" ? "cursor-pointer hover:bg-muted/70" : ""}`}
+                onClick={choice.integration === "tmdb" ? () => setDetailChoice(choice) : undefined}
               >
-                <div className="flex items-center gap-3">
-                  <span className="text-muted-foreground text-sm w-4">
-                    {index + 1}.
-                  </span>
-                  <span>{choice.title}</span>
+                <div className="flex items-center justify-between py-2 px-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-muted-foreground text-sm w-4">
+                      {index + 1}.
+                    </span>
+                    {choice.integration === "tmdb" && choice.posterPath && (
+                      <img
+                        src={tmdbPoster(choice.posterPath, "w92")}
+                        alt={choice.title}
+                        className="w-10 h-auto rounded shrink-0"
+                      />
+                    )}
+                    <span className="truncate">
+                      {choice.title}
+                      {choice.integration === "tmdb" && choice.releaseDate && (
+                        <span className="text-muted-foreground"> ({choice.releaseDate.slice(0, 4)})</span>
+                      )}
+                    </span>
+                    {choice.integration !== "tmdb" && choice.comment && (
+                      <button
+                        onClick={() => setExpandedComments((prev) => ({ ...prev, [index]: !prev[index] }))}
+                        className="text-muted-foreground hover:text-foreground cursor-pointer shrink-0"
+                        aria-label={expandedComments[index] ? "Hide comment" : "Show comment"}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    {choice.memberName && (
+                      <span className="text-xs text-muted-foreground">{choice.memberName}</span>
+                    )}
+                    <span className="text-sm font-medium text-green-700">
+                      {choice.rank} {isRankedChoice ? "pts" : "yes"}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  {choice.memberName && (
-                    <span className="text-xs text-muted-foreground">{choice.memberName}</span>
-                  )}
-                  <span className="text-sm font-medium text-green-700">
-                    {choice.rank} {isRankedChoice ? "pts" : "yes"}
-                  </span>
-                </div>
+                {expandedComments[index] && (
+                  <p className="text-sm text-muted-foreground px-4 pb-2 ml-7">
+                    {choice.integration === "tmdb" ? choice.description : choice.comment}
+                  </p>
+                )}
               </li>
             ))}
           </ol>
         </CardContent>
       </Card>
+      <Dialog open={detailChoice !== null} onOpenChange={(open) => { if (!open) setDetailChoice(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {detailChoice?.title}
+              {detailChoice?.releaseDate && (
+                <span className="text-muted-foreground font-normal"> ({detailChoice.releaseDate.slice(0, 4)})</span>
+              )}
+            </DialogTitle>
+            <DialogDescription className="sr-only">Movie details</DialogDescription>
+          </DialogHeader>
+          {detailChoice?.posterPath && (
+            <img
+              src={tmdbPoster(detailChoice.posterPath, "w500")}
+              alt={detailChoice.title}
+              className="w-full h-auto rounded-md"
+            />
+          )}
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+            {detailChoice?.voteAverage > 0 && (
+              <span>★ {detailChoice.voteAverage.toFixed(1)}</span>
+            )}
+            {detailChoice?.runtime > 0 && (
+              <span>{Math.floor(detailChoice.runtime / 60)}h {detailChoice.runtime % 60}m</span>
+            )}
+            {detailChoice?.language && (
+              <span>{detailChoice.language.toUpperCase()}</span>
+            )}
+            {detailChoice?.genres?.length > 0 && (
+              <span>{detailChoice.genres.join(", ")}</span>
+            )}
+            {detailChoice?.director && (
+              <span>Dir. {detailChoice.director}</span>
+            )}
+          </div>
+          {detailChoice?.description && (
+            <p className="text-sm text-muted-foreground">{detailChoice.description}</p>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

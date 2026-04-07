@@ -26,6 +26,7 @@ type SessionConfig struct {
 	MaxChoices         int       `json:"max_choices" binding:"required,gtefield=MinChoices" bson:"maxChoices"`
 	GracePeriodSeconds int       `json:"grace_period_seconds" binding:"min=0,max=30" bson:"gracePeriodSeconds"`
 	AllowEmptyVoters   bool      `json:"allow_empty_voters" bson:"allowEmptyVoters"`
+	Integration        string    `json:"integration" bson:"integration"`
 	CreatedAt          time.Time `json:"createdAt" bson:"createdAt"`
 	UpdatedAt          time.Time `json:"updatedAt" bson:"updatedAt"`
 }
@@ -50,9 +51,17 @@ type Vote struct {
 type Choice struct {
 	MemberName    string    `json:"memberName" bson:"memberName"`
 	Title         string    `json:"title" bson:"title"`
+	Comment       string    `json:"comment" bson:"comment"`
 	Integration   string    `json:"integration" bson:"integration"`
 	IntegrationID string    `json:"integrationID" bson:"integrationID"`
 	Description   string    `json:"description" bson:"description"`
+	PosterPath    string    `json:"posterPath" bson:"posterPath"`
+	ReleaseDate   string    `json:"releaseDate" bson:"releaseDate"`
+	VoteAverage   float64   `json:"voteAverage" bson:"voteAverage"`
+	Genres        []string  `json:"genres" bson:"genres"`
+	Runtime       int       `json:"runtime" bson:"runtime"`
+	Language      string    `json:"language" bson:"language"`
+	Director      string    `json:"director" bson:"director"`
 	Votes         []Vote    `json:"votes" bson:"votes"`
 	Rank          int       `json:"rank" bson:"rank"` // populated after voting
 	CreatedAt     time.Time `json:"createdAt" bson:"createdAt"`

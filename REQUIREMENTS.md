@@ -121,10 +121,27 @@ Choices added via integration carry metadata (thumbnails, descriptions, ratings,
 
 Members can add comments/descriptions to any choice regardless of source.
 
+## Asynchronous Mode
+
+An alternative session flow where participants do not need to be online simultaneously. Members can add choices and vote at their own pace within a configurable time window, rather than requiring real-time synchronization of all participants through each phase.
+
+## UI / UX Requirements
+
+- Dark mode support
+- Responsive UI across mobile and desktop
+- Input validation: restrict length of member display names and session/choice titles
+- On the join session card, show the session title alongside the session code
+- Cancel button on join form should respond immediately (not block on name check request)
+- Share session modal for easy link/code sharing
+- Information modal explaining how the app works
+- About page
+- Grace period countdown UI before phase transitions
+
 ## Non-Functional Requirements
 
 - Application is containerized with Docker Compose
-- All errors are logged
+- Deployment configuration for production environments
+- Structured logging for all errors and key events
 - Metrics are emitted (request counts per endpoint, availability)
 - Unit tests are written
 - WebSocket-based real-time sync for all phase transitions and member state changes

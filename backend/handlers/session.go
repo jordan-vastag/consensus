@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"consensus/integrations"
 	"consensus/models"
 	"consensus/repository"
 	"consensus/websocket"
@@ -73,6 +74,20 @@ func (h *SessionHandler) CreateSession(c *gin.Context) {
 		return
 	}
 
+	if len([]rune(req.Name)) > MAX_NAME_LENGTH {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Error: fmt.Sprintf("Name must be %d characters or fewer", MAX_NAME_LENGTH),
+		})
+		return
+	}
+
+	if len([]rune(req.Title)) > MAX_TITLE_LENGTH {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Error: fmt.Sprintf("Title must be %d characters or fewer", MAX_TITLE_LENGTH),
+		})
+		return
+	}
+
 	sessionCode, err := generateSessionCode(ctx, h.repo)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
@@ -120,6 +135,14 @@ func (h *SessionHandler) JoinSession(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, models.ErrorResponse{
 			Error: err.Error(),
 		})
+		return
+	}
+
+	if len([]rune(req.Name)) > MAX_NAME_LENGTH {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Error: fmt.Sprintf("Name must be %d characters or fewer", MAX_NAME_LENGTH),
+		})
+		return
 	}
 
 	session, err := h.repo.FindSessionByCode(ctx, code)
@@ -419,6 +442,13 @@ func (h *SessionHandler) UpdateMember(c *gin.Context) {
 		return
 	}
 
+	if len([]rune(req.NewName)) > MAX_NAME_LENGTH {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Error: fmt.Sprintf("Name must be %d characters or fewer", MAX_NAME_LENGTH),
+		})
+		return
+	}
+
 	session, err := h.repo.FindSessionByCode(ctx, code)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
@@ -450,6 +480,8 @@ func (h *SessionHandler) UpdateMember(c *gin.Context) {
 		})
 		return
 	}
+
+	h.hub.UpdateMemberName(code, name, req.NewName)
 
 	c.JSON(http.StatusOK, models.UpdateMemberResponse{
 		Msg:     "Member updated",
@@ -517,16 +549,64 @@ func (h *SessionHandler) AddMemberChoice(c *gin.Context) {
 		return
 	}
 
+	if len([]rune(req.Comment)) > MAX_COMMENT_LENGTH {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Error: fmt.Sprintf("Comment must be %d characters or fewer", MAX_COMMENT_LENGTH),
+		})
+		return
+	}
+
 	choice := models.Choice{
 		MemberName:    name,
 		Title:         req.Title,
+		Comment:       req.Comment,
 		Integration:   req.Integration,
 		IntegrationID: req.IntegrationID,
 		Description:   req.Description,
 	}
 
-	err := h.repo.AddChoice(ctx, code, choice)
-	if err != nil {
+	if req.Integration == IntegrationTMDB {
+		if req.IntegrationID == "" {
+			c.JSON(http.StatusBadRequest, models.ErrorResponse{
+				Error: "integrationID is required for TMDB choices",
+			})
+			return
+		}
+		tmdbClient := integrations.NewTMDBClient()
+		movie, err := tmdbClient.GetMovie(req.IntegrationID)
+		if err != nil {
+			c.JSON(http.StatusBadGateway, models.ErrorResponse{
+				Error: fmt.Sprintf("failed to fetch TMDB movie: %s", err.Error()),
+			})
+			return
+		}
+		choice.Title = movie.Title
+		choice.Description = movie.Overview
+		choice.PosterPath = movie.PosterPath
+		choice.ReleaseDate = movie.ReleaseDate
+		choice.VoteAverage = movie.VoteAverage
+		choice.Runtime = movie.Runtime
+		choice.Language = movie.OriginalLanguage
+		genres := make([]string, 0, len(movie.Genres))
+		for _, g := range movie.Genres {
+			genres = append(genres, g.Name)
+		}
+		choice.Genres = genres
+		for _, crew := range movie.Credits.Crew {
+			if crew.Job == "Director" {
+				choice.Director = crew.Name
+				break
+			}
+		}
+		choice.Comment = ""
+	} else if req.Title == "" {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Error: "title is required",
+		})
+		return
+	}
+
+	if err := h.repo.AddChoice(ctx, code, choice); err != nil {
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
 			Error: err.Error(),
 		})
@@ -576,9 +656,17 @@ func (h *SessionHandler) UpdateMemberChoice(c *gin.Context) {
 		return
 	}
 
+	if len([]rune(req.Comment)) > MAX_COMMENT_LENGTH {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Error: fmt.Sprintf("Comment must be %d characters or fewer", MAX_COMMENT_LENGTH),
+		})
+		return
+	}
+
 	updatedChoice := models.Choice{
 		MemberName:    name,
 		Title:         req.Title,
+		Comment:       req.Comment,
 		Integration:   req.Integration,
 		IntegrationID: req.IntegrationID,
 		Description:   req.Description,
