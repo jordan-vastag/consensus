@@ -16,6 +16,7 @@ import {
   updateSessionConfig,
 } from "@/app/api";
 import { Logo } from "@/components/logo";
+import { ShareDialog } from "@/components/share-dialog";
 import { useSessionWebSocket } from "@/hooks/useSessionWebSocket";
 import {
   AlertDialog,
@@ -198,6 +199,7 @@ export default function SessionPage() {
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const [detailChoice, setDetailChoice] = useState(null);
   const [descriptionTruncated, setDescriptionTruncated] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const descriptionRef = useRef(null);
   const [localVotes, setLocalVotes] = useState({});
   const [currentChoiceIndex, setCurrentChoiceIndex] = useState(0);
@@ -1238,13 +1240,7 @@ export default function SessionPage() {
                 <Button
                   variant="outline"
                   size="icon"
-                  onClick={() => {
-                    const url = `${window.location.origin}/s/${sessionState.code}`;
-                    navigator.clipboard.writeText(url);
-                    toast("Link copied to clipboard!", {
-                      description: "Share it with a friend to invite them.",
-                    });
-                  }}
+                  onClick={() => setShareOpen(true)}
                 >
                   <Image src="/share.svg" alt="Share" title="Share Session" width={20} height={20} />
                 </Button>
@@ -2082,6 +2078,12 @@ export default function SessionPage() {
         </DialogContent>
       </Dialog>
 
+      <ShareDialog
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        description="Use the link below to invite people to the session."
+        url={typeof window !== "undefined" && sessionState?.code ? `${window.location.origin}/s/${sessionState.code}` : ""}
+      />
     </div>
   );
 }

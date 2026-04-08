@@ -1,7 +1,8 @@
 "use client";
 
-import { Logo } from "@/components/logo";
 import { getResults } from "@/app/api";
+import { Logo } from "@/components/logo";
+import { ShareDialog } from "@/components/share-dialog";
 import { Button } from "@/ui/button";
 import {
   Card,
@@ -27,6 +28,7 @@ export default function ResultsPage() {
   const [error, setError] = useState(null);
   const [expandedComments, setExpandedComments] = useState({});
   const [detailChoice, setDetailChoice] = useState(null);
+  const [shareOpen, setShareOpen] = useState(false);
 
   const tmdbPoster = (path, size = "w92") =>
     path ? `https://image.tmdb.org/t/p/${size}${path}` : null;
@@ -93,11 +95,7 @@ export default function ResultsPage() {
                 <Button
                   variant="outline"
                   size="icon"
-                  onClick={() => {
-                    const url = `${window.location.origin}/results/${permalinkId}`;
-                    navigator.clipboard.writeText(url);
-                    toast("Results link copied to clipboard!");
-                  }}
+                  onClick={() => setShareOpen(true)}
                 >
                   <Image src="/share.svg" alt="Share" title="Share Results" width={20} height={20} />
                 </Button>
@@ -211,6 +209,12 @@ export default function ResultsPage() {
           )}
         </DialogContent>
       </Dialog>
+      <ShareDialog
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        description="Use the link below to share the results."
+        url={typeof window !== "undefined" ? `${window.location.origin}/results/${permalinkId}` : ""}
+      />
     </div>
   );
 }
