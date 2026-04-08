@@ -1256,7 +1256,7 @@ export default function SessionPage() {
                   variant={
                     sessionState.ready[sessionState.myName] ? "outline" : "default"
                   }
-                  className={sessionState.ready[sessionState.myName] ? "border-green-400 bg-green-50 text-green-700 hover:bg-green-100" : ""}
+                  className={`w-20 ${sessionState.ready[sessionState.myName] ? "border-green-400 bg-green-50 text-green-700 hover:bg-green-100" : ""}`}
                   onClick={() => setReady(!sessionState.ready[sessionState.myName])}
                   disabled={!isConnected}
                 >
