@@ -280,10 +280,10 @@ export default function Home() {
                       <ul className="flex flex-col gap-2 list-disc pl-5">
                         <li><b>Voting mode</b></li>
                         <ul className="list-disc pl-5 gap-1 flex flex-col">
-                          <li><i>Yes/No:</i> Vote yes or no. Easy!</li>
+                          <li><i>Yes/No:</i> For each choice, vote yes or no</li>
                           <li><i>Ranked Choice:</i> Order choices by preference</li>
                         </ul>
-                        <li><b>Choice style</b> <i>Simple</i> takes plain text, while <i>Movie</i> searches TMDB for film titles.</li>
+                        <li><b>Choice style</b></li>
                         <ul className="list-disc pl-5 gap-1 flex flex-col">
                           <li><i>Simple:</i> Plain text title and description</li>
                           <li><i>Movie (TMDB):</i> Search TMDB for film titles</li>
