@@ -602,9 +602,13 @@ export default function SessionPage() {
   const handleAddChoice = async () => {
     if (!newChoiceTitle.trim()) return;
 
+    const trimmedTitle = newChoiceTitle.trim();
+    const trimmedComment = newChoiceComment.trim();
+    if (choices.some((c) => c.title?.toLowerCase() === trimmedTitle.toLowerCase())) {
+      toast.error("Already added");
+      return;
+    }
     try {
-      const trimmedTitle = newChoiceTitle.trim();
-      const trimmedComment = newChoiceComment.trim();
       await addChoice(sessionState.code, sessionState.myName, { title: trimmedTitle, comment: trimmedComment });
       setChoices((prev) => [...prev, { title: trimmedTitle, comment: trimmedComment }]);
       setNewChoiceTitle("");
@@ -1423,7 +1427,7 @@ export default function SessionPage() {
             {choices.length > 0 && (
               <ul className="space-y-2 mb-4">
                 {choices.map((choice) => (
-                  <li key={choice.title} className="flex items-center gap-2 group">
+                  <li key={choice.integrationID ? `${choice.integration}:${choice.integrationID}` : choice.title} className="flex items-center gap-2 group">
                     <div
                       className={`flex items-center gap-3 py-2 px-4 rounded-md bg-muted flex-1 min-w-0 ${choice.integration === "tmdb" ? "cursor-pointer hover:bg-muted/70" : ""}`}
                       onClick={choice.integration === "tmdb" ? () => setDetailChoice(choice) : undefined}
@@ -1477,7 +1481,7 @@ export default function SessionPage() {
 
             {choices.length === 0 && (
               <p className="text-muted-foreground text-sm text-center py-4">
-                No options added yet. Add your first option above!
+                No options added yet.
               </p>
             )}
 
