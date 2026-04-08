@@ -286,7 +286,7 @@ export default function Home() {
                         <li><b>Choice style</b></li>
                         <ul className="list-disc pl-5 gap-1 flex flex-col">
                           <li><i>Simple:</i> Plain text title and description</li>
-                          <li><i>Movie (TMDB):</i> Search TMDB for film titles</li>
+                          <li><i>Movies (TMDB):</i> Search TMDB for film titles</li>
                         </ul>
                       </ul>
                     </AccordionContent>
@@ -560,7 +560,7 @@ export default function Home() {
                       </div>
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem id="integration-tmdb" value="tmdb" />
-                        <Label>Movie (TMDB)</Label>
+                        <Label>Movies (TMDB)</Label>
                       </div>
                     </RadioGroup>
                   </div>
