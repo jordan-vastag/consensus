@@ -29,6 +29,7 @@ export default function ResultsPage() {
   const [expandedComments, setExpandedComments] = useState({});
   const [detailChoice, setDetailChoice] = useState(null);
   const [shareOpen, setShareOpen] = useState(false);
+  const [showCopyCheckmark, setShowCopyCheckmark] = useState(false);
 
   const tmdbPoster = (path, size = "w92") =>
     path ? `https://image.tmdb.org/t/p/${size}${path}` : null;
@@ -81,16 +82,24 @@ export default function ResultsPage() {
                 <Button
                   variant="outline"
                   size="icon"
+                  className={showCopyCheckmark ? "bg-green-200 hover:bg-green-100" : ""}
                   onClick={() => {
+                    if (showCopyCheckmark) return;
                     const text = `Consensus | ${results.title} results\n` +
                       results.rankedChoices
                       ?.map((c, i) => `${i + 1}. ${c.title}`)
                       .join("\n");
                     navigator.clipboard.writeText(text);
                     toast("Results copied to clipboard!");
+                    setShowCopyCheckmark(true);
+                    setTimeout(() => setShowCopyCheckmark(false), 3000);
                   }}
                 >
-                  <Image src="/copy.svg" alt="Copy" title="Copy Results" width={20} height={20} />
+                  {showCopyCheckmark ? (
+                    <Image src="/check.svg" alt="Copied" width={20} height={20} />
+                  ) : (
+                    <Image src="/copy.svg" alt="Copy" title="Copy Results" width={20} height={20} />
+                  )}
                 </Button>
                 <Button
                   variant="outline"

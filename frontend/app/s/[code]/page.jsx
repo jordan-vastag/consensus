@@ -200,6 +200,7 @@ export default function SessionPage() {
   const [detailChoice, setDetailChoice] = useState(null);
   const [descriptionTruncated, setDescriptionTruncated] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [showJoinCodeCheckmark, setShowJoinCodeCheckmark] = useState(false);
   const descriptionRef = useRef(null);
   const [localVotes, setLocalVotes] = useState({});
   const [currentChoiceIndex, setCurrentChoiceIndex] = useState(0);
@@ -1225,12 +1226,19 @@ export default function SessionPage() {
               <button
                 className="inline-block ml-1 align-middle cursor-pointer opacity-60 hover:opacity-100 transition-opacity"
                 onClick={() => {
+                  if (showJoinCodeCheckmark) return;
                   navigator.clipboard.writeText(sessionState.code.toUpperCase());
                   toast("Join code copied to clipboard!");
+                  setShowJoinCodeCheckmark(true);
+                  setTimeout(() => setShowJoinCodeCheckmark(false), 3000);
                 }}
                 aria-label="Copy join code"
               >
-                <Image src="/copy.svg" alt="Copy" title="Copy Join Code" width={16} height={16} />
+                {showJoinCodeCheckmark ? (
+                  <Image src="/check.svg" alt="Copied" width={16} height={16} />
+                ) : (
+                  <Image src="/copy.svg" alt="Copy" title="Copy Join Code" width={16} height={16} />
+                )}
               </button>
             </CardDescription>
             <CardAction>
