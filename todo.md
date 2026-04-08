@@ -35,12 +35,12 @@ Requirements - ordered by most important to least important from top to bottom.
 
 - Dark mode (WIP)
 
-- Share session modal
+- Share session modal with native mobile share integration
 
 - Choice integrations
-  - Map (OpenStreetMaps, Google Maps?)\
   - Letterboxd
-  - AirBnb
+  - Restaurants (Google Maps places API)
+  - AirBnb ?
 
 ### Non-Functional
 

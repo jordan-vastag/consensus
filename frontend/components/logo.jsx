@@ -35,12 +35,11 @@ export function Logo({ autoPlay = false, onClick }) {
       <img
         src={src}
         alt="Logo"
-        width={150}
-        height={150}
         loading="eager"
         onMouseEnter={playGif}
+        className="w-20 h-20 sm:w-[150px] sm:h-[150px]"
       />
-      <h1 className="text-7xl font-bold">Consensus</h1>
+      <h1 className="text-4xl sm:text-7xl font-bold">Consensus</h1>
     </div>
   );
 }

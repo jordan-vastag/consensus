@@ -1,7 +1,8 @@
 "use client";
 
-import { Logo } from "@/components/logo";
 import { getResults } from "@/app/api";
+import { Logo } from "@/components/logo";
+import { ShareDialog } from "@/components/share-dialog";
 import { Button } from "@/ui/button";
 import {
   Card,
@@ -27,6 +28,8 @@ export default function ResultsPage() {
   const [error, setError] = useState(null);
   const [expandedComments, setExpandedComments] = useState({});
   const [detailChoice, setDetailChoice] = useState(null);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [showCopyCheckmark, setShowCopyCheckmark] = useState(false);
 
   const tmdbPoster = (path, size = "w92") =>
     path ? `https://image.tmdb.org/t/p/${size}${path}` : null;
@@ -40,7 +43,7 @@ export default function ResultsPage() {
 
   if (error) {
     return (
-      <div className="flex justify-center items-center h-200 flex-col">
+      <div className="flex items-center min-h-screen flex-col p-6">
         <Logo onClick={() => router.push("/")} />
         <Card className="w-full max-w-sm m-10">
           <CardHeader>
@@ -57,7 +60,7 @@ export default function ResultsPage() {
 
   if (!results) {
     return (
-      <div className="flex justify-center items-center h-200 flex-col">
+      <div className="flex items-center min-h-screen flex-col p-6">
         <Logo onClick={() => router.push("/")} />
         <Spinner className="size-8 mt-8" />
       </div>
@@ -67,7 +70,7 @@ export default function ResultsPage() {
   const isRankedChoice = results.votingMode === "ranked_choice";
 
   return (
-    <div className="flex justify-center items-center h-200 flex-col">
+    <div className="flex items-center min-h-screen flex-col p-4 sm:p-6">
       <Logo autoPlay onClick={() => router.push("/")} />
       <Card className="w-full max-w-lg m-10">
         <CardHeader>
@@ -79,25 +82,29 @@ export default function ResultsPage() {
                 <Button
                   variant="outline"
                   size="icon"
+                  className={showCopyCheckmark ? "bg-green-200 hover:bg-green-100" : ""}
                   onClick={() => {
+                    if (showCopyCheckmark) return;
                     const text = `Consensus | ${results.title} results\n` +
                       results.rankedChoices
                       ?.map((c, i) => `${i + 1}. ${c.title}`)
                       .join("\n");
                     navigator.clipboard.writeText(text);
                     toast("Results copied to clipboard!");
+                    setShowCopyCheckmark(true);
+                    setTimeout(() => setShowCopyCheckmark(false), 3000);
                   }}
                 >
-                  <Image src="/copy.svg" alt="Copy" title="Copy Results" width={20} height={20} />
+                  {showCopyCheckmark ? (
+                    <Image src="/check.svg" alt="Copied" width={20} height={20} />
+                  ) : (
+                    <Image src="/copy.svg" alt="Copy" title="Copy Results" width={20} height={20} />
+                  )}
                 </Button>
                 <Button
                   variant="outline"
                   size="icon"
-                  onClick={() => {
-                    const url = `${window.location.origin}/results/${permalinkId}`;
-                    navigator.clipboard.writeText(url);
-                    toast("Results link copied to clipboard!");
-                  }}
+                  onClick={() => setShareOpen(true)}
                 >
                   <Image src="/share.svg" alt="Share" title="Share Results" width={20} height={20} />
                 </Button>
@@ -211,6 +218,12 @@ export default function ResultsPage() {
           )}
         </DialogContent>
       </Dialog>
+      <ShareDialog
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        description="Use the link below to share the results."
+        url={typeof window !== "undefined" ? `${window.location.origin}/results/${permalinkId}` : ""}
+      />
     </div>
   );
 }

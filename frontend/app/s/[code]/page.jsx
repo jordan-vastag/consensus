@@ -16,6 +16,7 @@ import {
   updateSessionConfig,
 } from "@/app/api";
 import { Logo } from "@/components/logo";
+import { ShareDialog } from "@/components/share-dialog";
 import { useSessionWebSocket } from "@/hooks/useSessionWebSocket";
 import {
   AlertDialog,
@@ -198,6 +199,8 @@ export default function SessionPage() {
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const [detailChoice, setDetailChoice] = useState(null);
   const [descriptionTruncated, setDescriptionTruncated] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [showJoinCodeCheckmark, setShowJoinCodeCheckmark] = useState(false);
   const descriptionRef = useRef(null);
   const [localVotes, setLocalVotes] = useState({});
   const [currentChoiceIndex, setCurrentChoiceIndex] = useState(0);
@@ -810,7 +813,7 @@ export default function SessionPage() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-200 flex-col">
+      <div className="flex items-center min-h-screen flex-col p-6">
         <Logo />
         <Spinner className="size-8 mt-8" />
       </div>
@@ -819,7 +822,7 @@ export default function SessionPage() {
 
   if (errorMessage) {
     return (
-      <div className="flex justify-center items-center h-200 flex-col">
+      <div className="flex items-center min-h-screen flex-col p-6">
         <Logo />
         <Card className="w-full max-w-sm m-10">
           <CardHeader>
@@ -836,7 +839,7 @@ export default function SessionPage() {
 
   if (needsToJoin) {
     return (
-      <div className="flex justify-center items-center h-200 flex-col">
+      <div className="flex items-center min-h-screen flex-col p-6">
         <Logo />
         <Card className="w-full max-w-sm m-10">
           <CardHeader>
@@ -900,7 +903,7 @@ export default function SessionPage() {
   }
 
   return (
-    <div className="flex justify-center items-center h-200 flex-col">
+    <div className="flex items-center min-h-screen flex-col p-4 sm:p-6">
       <Logo />
 
       {sessionState.active && sessionState.phase === "lobby" && (
@@ -1223,12 +1226,19 @@ export default function SessionPage() {
               <button
                 className="inline-block ml-1 align-middle cursor-pointer opacity-60 hover:opacity-100 transition-opacity"
                 onClick={() => {
+                  if (showJoinCodeCheckmark) return;
                   navigator.clipboard.writeText(sessionState.code.toUpperCase());
                   toast("Join code copied to clipboard!");
+                  setShowJoinCodeCheckmark(true);
+                  setTimeout(() => setShowJoinCodeCheckmark(false), 3000);
                 }}
                 aria-label="Copy join code"
               >
-                <Image src="/copy.svg" alt="Copy" title="Copy Join Code" width={16} height={16} />
+                {showJoinCodeCheckmark ? (
+                  <Image src="/check.svg" alt="Copied" width={16} height={16} />
+                ) : (
+                  <Image src="/copy.svg" alt="Copy" title="Copy Join Code" width={16} height={16} />
+                )}
               </button>
             </CardDescription>
             <CardAction>
@@ -1238,13 +1248,7 @@ export default function SessionPage() {
                 <Button
                   variant="outline"
                   size="icon"
-                  onClick={() => {
-                    const url = `${window.location.origin}/s/${sessionState.code}`;
-                    navigator.clipboard.writeText(url);
-                    toast("Link copied to clipboard!", {
-                      description: "Share it with a friend to invite them.",
-                    });
-                  }}
+                  onClick={() => setShareOpen(true)}
                 >
                   <Image src="/share.svg" alt="Share" title="Share Session" width={20} height={20} />
                 </Button>
@@ -1256,7 +1260,7 @@ export default function SessionPage() {
                   onClick={() => setReady(!sessionState.ready[sessionState.myName])}
                   disabled={!isConnected}
                 >
-                  {sessionState.ready[sessionState.myName] ? "I'm Ready!" : "Ready?"}
+                  {sessionState.ready[sessionState.myName] ? "Ready!" : "Ready?"}
                 </Button>
               </div>
               </div>
@@ -2082,6 +2086,12 @@ export default function SessionPage() {
         </DialogContent>
       </Dialog>
 
+      <ShareDialog
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        description="Use the link below to invite people to the session."
+        url={typeof window !== "undefined" && sessionState?.code ? `${window.location.origin}/s/${sessionState.code}` : ""}
+      />
     </div>
   );
 }
