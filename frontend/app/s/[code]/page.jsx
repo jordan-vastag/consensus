@@ -902,7 +902,7 @@ export default function SessionPage() {
   }
 
   return (
-    <div className="flex justify-center items-center h-200 flex-col">
+    <div className="flex items-center h-200 flex-col p-6">
       <Logo />
 
       {sessionState.active && sessionState.phase === "lobby" && (

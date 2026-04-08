@@ -196,7 +196,7 @@ export default function Home() {
   };
 
   return (
-    <div className="flex justify-center items-center h-200 flex-col">
+    <div className="flex items-center h-200 flex-col p-6">
       <Logo autoPlay />
 
       {!errorMessage.visible && !showRejoinPrompt && (

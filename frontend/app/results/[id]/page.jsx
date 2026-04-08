@@ -69,7 +69,7 @@ export default function ResultsPage() {
   const isRankedChoice = results.votingMode === "ranked_choice";
 
   return (
-    <div className="flex justify-center items-center h-200 flex-col">
+    <div className="flex items-center h-200 flex-col p-6">
       <Logo autoPlay onClick={() => router.push("/")} />
       <Card className="w-full max-w-lg m-10">
         <CardHeader>
