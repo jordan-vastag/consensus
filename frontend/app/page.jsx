@@ -196,11 +196,11 @@ export default function Home() {
   };
 
   return (
-    <div className="flex items-center h-200 flex-col p-6">
+    <div className="flex items-center min-h-screen flex-col p-4 sm:p-6">
       <Logo autoPlay />
 
       {!errorMessage.visible && !showRejoinPrompt && (
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full max-w-sm mt-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full max-w-sm mt-6 mx-auto">
           <div className="flex items-center gap-2">
             {!infoOpen && (
               <TabsList className="grid flex-1 grid-cols-2">

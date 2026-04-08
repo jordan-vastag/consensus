@@ -812,7 +812,7 @@ export default function SessionPage() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-200 flex-col">
+      <div className="flex justify-center items-center min-h-screen flex-col">
         <Logo />
         <Spinner className="size-8 mt-8" />
       </div>
@@ -821,7 +821,7 @@ export default function SessionPage() {
 
   if (errorMessage) {
     return (
-      <div className="flex justify-center items-center h-200 flex-col">
+      <div className="flex justify-center items-center min-h-screen flex-col">
         <Logo />
         <Card className="w-full max-w-sm m-10">
           <CardHeader>
@@ -838,7 +838,7 @@ export default function SessionPage() {
 
   if (needsToJoin) {
     return (
-      <div className="flex justify-center items-center h-200 flex-col">
+      <div className="flex justify-center items-center min-h-screen flex-col">
         <Logo />
         <Card className="w-full max-w-sm m-10">
           <CardHeader>
@@ -902,7 +902,7 @@ export default function SessionPage() {
   }
 
   return (
-    <div className="flex items-center h-200 flex-col p-6">
+    <div className="flex items-center min-h-screen flex-col p-4 sm:p-6">
       <Logo />
 
       {sessionState.active && sessionState.phase === "lobby" && (
