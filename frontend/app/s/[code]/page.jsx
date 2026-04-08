@@ -1260,7 +1260,7 @@ export default function SessionPage() {
                   onClick={() => setReady(!sessionState.ready[sessionState.myName])}
                   disabled={!isConnected}
                 >
-                  {sessionState.ready[sessionState.myName] ? "I'm Ready!" : "Ready?"}
+                  {sessionState.ready[sessionState.myName] ? "Ready!" : "Ready?"}
                 </Button>
               </div>
               </div>
