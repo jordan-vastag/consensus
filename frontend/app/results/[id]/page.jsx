@@ -42,7 +42,7 @@ export default function ResultsPage() {
 
   if (error) {
     return (
-      <div className="flex justify-center items-center min-h-screen flex-col">
+      <div className="flex items-center min-h-screen flex-col p-6">
         <Logo onClick={() => router.push("/")} />
         <Card className="w-full max-w-sm m-10">
           <CardHeader>
@@ -59,7 +59,7 @@ export default function ResultsPage() {
 
   if (!results) {
     return (
-      <div className="flex justify-center items-center min-h-screen flex-col">
+      <div className="flex items-center min-h-screen flex-col p-6">
         <Logo onClick={() => router.push("/")} />
         <Spinner className="size-8 mt-8" />
       </div>
