@@ -6,8 +6,6 @@ Requirements - ordered by most important to least important from top to bottom.
 
 ### Functional
 
-- Responsive UI
-
 - Swipe left/right action for yes/no voting
 
 ### Non-Functional
