@@ -5,6 +5,12 @@ COPY package.json ./
 RUN yarn install
 
 COPY . .
+
+# NEXT_PUBLIC_* vars are baked into the Next.js bundle at build time.
+# Empty string = same-origin relative URLs (production behind nginx).
+ARG NEXT_PUBLIC_API_ORIGIN
+ENV NEXT_PUBLIC_API_ORIGIN=${NEXT_PUBLIC_API_ORIGIN}
+
 RUN npm run build
 
 FROM node:20-alpine AS runner

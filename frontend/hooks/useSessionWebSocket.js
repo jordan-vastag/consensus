@@ -2,7 +2,20 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const WS_BASE_URL = "ws://localhost:8080/api";
+// NEXT_PUBLIC_API_ORIGIN is baked in at build time.
+// Empty string → derive from window.location (prod, same-origin via nginx).
+// Unset → local dev default of ws://localhost:8080.
+const API_ORIGIN = process.env.NEXT_PUBLIC_API_ORIGIN ?? "http://localhost:8080";
+function getWSBaseURL() {
+  if (API_ORIGIN) {
+    return `${API_ORIGIN.replace(/^http/, "ws")}/api`;
+  }
+  if (typeof window !== "undefined") {
+    const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+    return `${proto}//${window.location.host}/api`;
+  }
+  return "ws://localhost:8080/api";
+}
 
 export function useSessionWebSocket(sessionCode, memberName, handlers = {}) {
   const [isConnected, setIsConnected] = useState(false);
@@ -28,7 +41,7 @@ export function useSessionWebSocket(sessionCode, memberName, handlers = {}) {
     const name = memberNameRef.current;
     if (!sessionCode || !name) return;
 
-    const url = `${WS_BASE_URL}/session/${sessionCode}/ws?name=${encodeURIComponent(name)}`;
+    const url = `${getWSBaseURL()}/session/${sessionCode}/ws?name=${encodeURIComponent(name)}`;
 
     try {
       const ws = new WebSocket(url);

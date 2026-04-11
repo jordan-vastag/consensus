@@ -1,4 +1,8 @@
-const API_BASE_URL = "http://localhost:8080/api";
+// NEXT_PUBLIC_API_ORIGIN is baked in at build time.
+// Empty string → same-origin relative URLs (prod behind nginx).
+// Unset → local dev default of http://localhost:8080.
+const API_ORIGIN = process.env.NEXT_PUBLIC_API_ORIGIN ?? "http://localhost:8080";
+const API_BASE_URL = `${API_ORIGIN}/api`;
 
 async function hostSession(payload) {
   const url = `${API_BASE_URL}/session/`;

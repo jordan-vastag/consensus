@@ -1,0 +1,11 @@
+FROM node:20-alpine
+EXPOSE 3000
+
+WORKDIR /app
+
+COPY package.json ./
+RUN yarn install
+
+ENV PATH=$PATH:/app/node_modules/.bin
+
+CMD ["yarn", "dev"]
