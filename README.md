@@ -29,11 +29,17 @@ yarn dev
 
 ### Docker
 
-`docker compose up --build`
+```bash
+docker compose -f docker-compose.local.yml up --build
+```
 
-Note: when developing it's easiest to run mongo via Docker and the frontend and backend directly. 
+App runs on port 8080.
 
-To only run mongo with docker compose: `docker compose up mongo` 
+#### Note
+
+For development purposes it's easiest to run mongo via Docker and the frontend and backend directly. 
+
+To only run mongo with docker compose: `docker compose -f docker-compose.local.yml up mongo` 
 
 ## Testing
 
