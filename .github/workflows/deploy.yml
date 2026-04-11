@@ -1,0 +1,275 @@
+name: Deployment Workflow
+
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch to deploy"
+        required: true
+        default: "main"
+        type: string
+      environment:
+        description: "Deployment environment"
+        required: true
+        default: "production"
+        type: choice
+        options:
+          - production
+        # - staging
+
+jobs:
+  deploy:
+    if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref }}
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.CICD_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          timeout: 30s
+          command_timeout: 10m
+          script: |
+            deployment_log="${{ secrets.DEPLOYMENT_DIRECTORY }}/deployment.log"
+            app_directory="${{ secrets.DEPLOYMENT_DIRECTORY }}/${{ github.event.repository.name }}"
+            backup_directory="${{ secrets.DEPLOYMENT_DIRECTORY }}/backup"
+            application_url="https://${{ secrets.DOMAIN_NAME }}"
+            repository_url="git@github.com:${{ github.repository }}.git"
+            current_sha="${{ github.sha }}"
+            previous_sha_file="${app_directory}/.previous_sha"
+            latest_sha_file="${app_directory}/.latest_sha"
+
+            log() {
+              echo "${1}"
+              echo "$(TZ='America/Chicago' date) | ${1}" >> "${deployment_log}"
+            }
+
+            validate_secrets() {
+              log "Validating required secrets..."
+
+              if [ -z "${{ secrets.DEPLOYMENT_DIRECTORY }}" ]; then
+                log "✗ DEPLOYMENT_DIRECTORY secret is missing"
+                exit 1
+              fi
+
+              if [ -z "${{ secrets.DOMAIN_NAME }}" ]; then
+                log "✗ DOMAIN_NAME secret is missing"
+                exit 1
+              fi
+
+              if [ -z "${{ secrets.GMAIL_EMAIL }}" ]; then
+                log "✗ GMAIL_EMAIL secret is missing"
+                exit 1
+              fi
+
+              if [ -z "${{ secrets.GMAIL_APP_PASSWORD }}" ]; then
+                log "✗ GMAIL_APP_PASSWORD secret is missing"
+                exit 1
+              fi
+
+              if [ -z "${{ secrets.RECIPIENT_EMAIL }}" ]; then
+                log "✗ RECIPIENT_EMAIL secret is missing"
+                exit 1
+              fi
+
+              if [ -z "${{ secrets.TMDB_API_KEY }}" ]; then
+                log "✗ TMDB_API_KEY secret is missing"
+                exit 1
+              fi
+
+              log "✓ All required secrets validated"
+            }
+
+            site_health_check() {
+              local max_attempts=3
+              local attempt=1
+
+              while [ $attempt -le $max_attempts ]; do
+                status_code=$(curl -o /dev/null -s -w "%{http_code}\n" "${application_url}")
+                if [ "${status_code}" -eq 200 ]; then
+                  log "✓ Site health check passed with status code ${status_code}"
+                  return 0
+                fi
+
+                log "Site health check attempt ${attempt}/${max_attempts} failed with status code ${status_code}"
+                if [ $attempt -lt $max_attempts ]; then
+                  sleep 15
+                fi
+                ((attempt++))
+              done
+
+              log "✗ Site health check failed after ${max_attempts} attempts"
+              return 1
+            }
+
+            container_health_check() {
+              local max_attempts=3
+              local attempt=1
+
+              while [ $attempt -le $max_attempts ]; do
+                expected_services=("backend" "frontend" "mongo")
+                all_running=true
+
+                for service in "${expected_services[@]}"; do
+                  if docker compose ps --services --filter "status=running" | grep -q "^${service}$"; then
+                    log "✓ ${service} container is running"
+                  else
+                    log "✗ ${service} container is not running"
+                    all_running=false
+                    break
+                  fi
+                done
+
+                if [ "$all_running" = true ]; then
+                  log "All containers are running - health check passed"
+                  return 0
+                fi
+
+                log "Container health check attempt ${attempt}/${max_attempts} failed"
+                if [ $attempt -lt $max_attempts ]; then
+                  sleep 15
+                fi
+                ((attempt++))
+              done
+
+              log "✗ Container health check failed after ${max_attempts} attempts"
+              return 1
+            }
+
+            rollback_version() {
+              if [ ! -f "${previous_sha_file}" ]; then
+                log "✗ No previous version found for rollback"
+                return 1
+              fi
+
+              previous_sha=$(cat "${previous_sha_file}")
+              log "Rolling back to previous version: ${previous_sha}"
+
+              docker tag consensus-backend:${previous_sha} consensus-backend:latest
+              docker tag consensus-frontend:${previous_sha} consensus-frontend:latest
+
+              cd "${app_directory}"
+              docker compose down
+              docker compose up -d
+
+              log "Performing health checks on rolled back version..."
+              if container_health_check && site_health_check; then
+                log "✓ Rollback successful - all health checks passed"
+                return 0
+              else
+                log "✗ Rollback failed - health checks did not pass"
+                log "Manual intervention required"
+                return 1
+              fi
+            }
+
+            cleanup_old_images() {
+              log "Cleaning up old Docker images..."
+              # Keep only the last 3 versions of each service
+              docker images --format "table {{.Repository}}:{{.Tag}}" | grep consensus | grep -v latest | sort -r | tail -n +4 | xargs -r docker rmi
+            }
+
+            validate_secrets
+            log "Starting deployment for commit ${current_sha}..."
+
+            if [ ! -d "${app_directory}" ]; then
+              log "App directory not found. Performing first time deployment..."
+              mkdir -p "${{ secrets.DEPLOYMENT_DIRECTORY }}"
+              cd "${{ secrets.DEPLOYMENT_DIRECTORY }}"
+
+              deploy_branch="${{ github.event.inputs.branch || 'main' }}"
+              log "Cloning repository from branch: ${deploy_branch}..."
+              git clone -b "${deploy_branch}" "${repository_url}"
+              cd "${app_directory}"
+            else
+              log "App directory found. Performing normal deployment..."
+              cd "${app_directory}"
+
+              if [ -f "${latest_sha_file}" ]; then
+                current_deployed_sha=$(cat "${latest_sha_file}")
+                echo "${current_deployed_sha}" > "${previous_sha_file}"
+                log "Stored previous version: ${current_deployed_sha}"
+              else
+                log "No previous deployment found (.latest_sha file missing)"
+              fi
+
+              log "Creating source backup for manual intervention..."
+              mkdir -p "${backup_directory}"
+              cp -r . "${backup_directory}/source_$(TZ='America/Chicago' date +'%Y%m%d_%H%M%S')" 2>/dev/null || true
+
+              deploy_branch="${{ github.event.inputs.branch || 'main' }}"
+              log "Fetching new version from branch: ${deploy_branch}..."
+              git fetch origin
+              git reset --hard origin/${deploy_branch}
+            fi
+
+            log "Creating backend .env file from Github Actions secrets..."
+            cat > ./backend/.env << EOF
+            GMAIL_EMAIL=${{ secrets.GMAIL_EMAIL }}
+            GMAIL_APP_PASSWORD=${{ secrets.GMAIL_APP_PASSWORD }}
+            RECIPIENT_EMAIL=${{ secrets.RECIPIENT_EMAIL }}
+            TMDB_API_KEY=${{ secrets.TMDB_API_KEY }}
+            MODE=production
+            EOF
+
+            log "Building Docker images with tag ${current_sha}..."
+            if ! docker build -t consensus-backend:${current_sha} ./backend; then
+              log "✗ Backend Docker build failed"
+              exit 1
+            fi
+
+            if ! docker build --build-arg NEXT_PUBLIC_API_ORIGIN="" -t consensus-frontend:${current_sha} ./frontend; then
+              log "✗ Frontend Docker build failed"
+              exit 1
+            fi
+
+            log "✓ Docker builds completed successfully"
+
+            log "Tagging new images as latest..."
+            docker tag consensus-backend:${current_sha} consensus-backend:latest
+            docker tag consensus-frontend:${current_sha} consensus-frontend:latest
+
+            log "Deploying new version..."
+            docker compose down
+            docker compose up -d
+
+            log "Performing container health check..."
+            if ! container_health_check; then
+              log "Container health check failed. Attempting rollback..."
+              if rollback_version; then
+                log "Rollback successful but deployment failed"
+                exit 1
+              else
+                log "Rollback failed. Manual intervention required"
+                exit 1
+              fi
+            fi
+
+            log "Performing site health check..."
+            if ! site_health_check; then
+              log "Site health check failed. Attempting rollback..."
+              if rollback_version; then
+                log "Rollback successful but deployment failed"
+                exit 1
+              else
+                log "Rollback failed. Manual intervention required"
+                exit 1
+              fi
+            fi
+
+            echo "${current_sha}" > "${latest_sha_file}"
+            log "Updated .latest_sha file with current deployment: ${current_sha}"
+
+            cleanup_old_images
+            log "✓ Deployment successful for commit ${current_sha}"

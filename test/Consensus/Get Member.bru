@@ -1,0 +1,21 @@
+meta {
+  name: Get Member
+  type: http
+  seq: 9
+}
+
+get {
+  url: http://{{base-url}}/api/session/:code/member/:name
+  body: none
+  auth: inherit
+}
+
+params:path {
+  code: 
+  name: Alice
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

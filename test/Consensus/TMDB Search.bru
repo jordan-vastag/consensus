@@ -1,0 +1,26 @@
+meta {
+  name: TMDB Search
+  type: http
+  seq: 11
+}
+
+get {
+  url: http://{{base-url}}/api/integrations/tmdb/search?q={{query}}&page={{page}}
+  body: none
+  auth: inherit
+}
+
+params:query {
+  q: {{query}}
+  page: {{page}}
+}
+
+vars:pre-request {
+  query: inception
+  page: 1
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

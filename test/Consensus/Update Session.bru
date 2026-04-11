@@ -1,0 +1,39 @@
+meta {
+  name: Update Session
+  type: http
+  seq: 6
+}
+
+put {
+  url: http://{{base-url}}/api/session/:code/config
+  body: json
+  auth: inherit
+}
+
+params:path {
+  code: urjf6d
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "code": "urjf6d",
+    "memberId": 1,
+    "newConfig": {
+      "anonymity": true,
+      "voting_mode": "yes_no",
+      "min_choices": 1,
+      "max_choices": 1,
+      "grace_period_seconds": 30,
+      "allow_empty_voters": true
+    }
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
