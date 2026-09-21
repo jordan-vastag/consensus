@@ -47,9 +47,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
       - name: Build and push backend image
         uses: docker/build-push-action@v7
         with:
@@ -58,8 +55,6 @@ jobs:
           tags: |
             ${{ env.BACKEND_IMAGE }}:sha-${{ github.sha }}
             ${{ env.BACKEND_IMAGE }}:latest
-          cache-from: type=gha,scope=backend
-          cache-to: type=gha,mode=min,scope=backend
 
       - name: Build and push frontend image
         uses: docker/build-push-action@v7
@@ -71,8 +66,6 @@ jobs:
           tags: |
             ${{ env.FRONTEND_IMAGE }}:sha-${{ github.sha }}
             ${{ env.FRONTEND_IMAGE }}:latest
-          cache-from: type=gha,scope=frontend
-          cache-to: type=gha,mode=min,scope=frontend
 
   deploy:
     needs: build
