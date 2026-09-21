@@ -1,8 +1,9 @@
 services:
   backend:
-    image: consensus-backend:latest
+    image: ghcr.io/jordan-vastag/consensus-backend:latest
     container_name: consensus-backend
     restart: unless-stopped
+    env_file: .env
     environment:
       - PORT=8080
       - MONGO_URI=mongodb://mongo:27017
@@ -15,7 +16,7 @@ services:
       - consensus
 
   frontend:
-    image: consensus-frontend:latest
+    image: ghcr.io/jordan-vastag/consensus-frontend:latest
     container_name: consensus-frontend
     restart: unless-stopped
     ports:
